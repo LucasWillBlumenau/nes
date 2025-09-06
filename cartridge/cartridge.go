@@ -21,6 +21,7 @@ type Cartridge struct {
 	UseTrainer             bool
 	UseFourScreenMirroring bool
 	RamBanksQuantity       uint
+	ProgramBanks           uint
 	MapperId               uint
 	Trainer                []byte
 	ProgramRom             []byte
@@ -97,6 +98,7 @@ func LoadCartridgeFromReader(r io.ReadCloser) (*Cartridge, error) {
 		UseTrainer:             useTrainer,
 		UseFourScreenMirroring: useFourScreenMirroring,
 		RamBanksQuantity:       uint(ramBanksQuantity),
+		ProgramBanks:           uint(programBanks),
 		MapperId:               uint(mapperId),
 		Trainer:                trainer,
 		ProgramRom:             programRom,
