@@ -1,0 +1,58 @@
+package ppu
+
+var nameTableMirrors = []uint16{
+	0: 0,
+	1: 0,
+	2: 1,
+	3: 1,
+}
+
+const nameTableOffset uint16 = 0x2000
+
+type bus struct {
+	rom []uint8
+	ram []uint8
+}
+
+func newBus(rom []uint8) bus {
+	ram := make([]uint8, 2*kb)
+	return bus{rom: rom, ram: ram}
+}
+
+func (b *bus) write(addr uint16, value uint8) {
+	writeAddr := b.getAddress(addr)
+	if writeAddr != nil {
+		*writeAddr = value
+	}
+
+}
+
+func (b *bus) read(addr uint16) uint8 {
+	readAddr := b.getAddress(addr)
+	if readAddr != nil {
+		return *readAddr
+	}
+	return 0
+}
+
+func (b *bus) getAddress(addr uint16) *uint8 {
+	if addr >= 0x4000 {
+		addr &= 0x3FFF
+	}
+
+	isChrRomAddr := addr < 0x2000
+	if isChrRomAddr {
+		return &b.rom[addr]
+	}
+
+	// TODO: handle horizontal and vertical mirroring, for now it's assumed is horizontal
+	isNameTableAddress := addr < 0x03F00
+	if isNameTableAddress {
+		nameTableIndex := addr >> 10 & 0b11
+		addr = (nameTableMirrors[nameTableIndex] << 10) | (addr & 0b1111001111111111)
+		return &b.ram[addr-nameTableOffset]
+	}
+
+	// TODO: handle palettes and sprite palettes
+	return nil
+}

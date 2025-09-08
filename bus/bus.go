@@ -58,7 +58,8 @@ func (b *Bus) Write(addr uint16, value uint8) {
 		b.ppu.WritePPUDataPort(value)
 	}
 
-	panic("invalid address found")
+	// TODO: check out behavior when doing writes to addresses that should only be read
+	// panic("invalid address found")
 }
 
 func (b *Bus) Read(addr uint16) uint8 {
@@ -70,11 +71,16 @@ func (b *Bus) Read(addr uint16) uint8 {
 	addr &= 0x2007
 	switch addr {
 	case ppuStatusPortAddr:
+		return b.ppu.ReadStatusPort()
 	case ppuOAMDataPortAddr:
+		return b.ppu.ReadOAMDataPort()
 	case ppuVRamDataPortAddr:
+		return b.ppu.ReadVRamDataPort()
 	}
 
-	panic("invalid address found")
+	// TODO: check out behavior on read to write-only ports
+	// panic("invalid address found")
+	return 0
 }
 
 func (b *Bus) getValueAddress(addr uint16) *uint8 {
