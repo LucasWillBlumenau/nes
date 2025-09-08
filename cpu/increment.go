@@ -7,13 +7,13 @@ import (
 func Dec(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction DEC...")
 
-	currentValue := cpu.Bus.Read(fetchedValue)
+	currentValue := cpu.BusRead(fetchedValue)
 	result := currentValue - 1 // uint8 wraps automatically in Go
 
 	cpu.SetStatusFlag(StatusFlagNegative, (result>>7) == 1)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
 
-	cpu.Bus.Write(fetchedValue, result)
+	cpu.BusWrite(fetchedValue, result)
 }
 
 func Dex(cpu *CPU, _ uint16) {
@@ -35,13 +35,13 @@ func Dey(cpu *CPU, _ uint16) {
 func Inc(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction INC...")
 
-	currentValue := cpu.Bus.Read(fetchedValue)
+	currentValue := cpu.BusRead(fetchedValue)
 	result := currentValue + 1 // uint8 wraps automatically
 
 	cpu.SetStatusFlag(StatusFlagNegative, (result>>7) == 1)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
 
-	cpu.Bus.Write(fetchedValue, result)
+	cpu.BusWrite(fetchedValue, result)
 }
 
 func Inx(cpu *CPU, _ uint16) {

@@ -32,19 +32,19 @@ func Ldy(cpu *CPU, fetchedValue uint16) {
 func Sta(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction STA...")
 
-	cpu.Bus.Write(fetchedValue, cpu.A)
+	cpu.BusWrite(fetchedValue, cpu.A)
 }
 
 // address
 func Stx(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction STX...")
 
-	cpu.Bus.Write(fetchedValue, cpu.X)
+	cpu.BusWrite(fetchedValue, cpu.X)
 }
 
 // address
 func Sty(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction STY...")
 
-	cpu.Bus.Write(fetchedValue, cpu.Y)
+	cpu.BusWrite(fetchedValue, cpu.Y)
 }

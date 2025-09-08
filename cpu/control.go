@@ -7,25 +7,19 @@ import (
 func Brk(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction BRK...")
 
-	programCounter := cpu.Pc + 2
+	programCounter := cpu.Pc + 1
 
 	hi := uint8(programCounter >> 8)
 	lo := uint8(programCounter & 0x00FF)
 
-	stackAddress := uint16(cpu.Sp) | 0x0100
-	cpu.Bus.Write(stackAddress, hi)
-	cpu.Sp--
-
-	stackAddress = uint16(cpu.Sp) | 0x0100
-	cpu.Bus.Write(stackAddress, lo)
-	cpu.Sp--
-
+	cpu.Push(hi)
+	cpu.Push(lo)
 	cpu.Push(cpu.P)
 
 	cpu.SetStatusFlag(StatusFlagInterruptDisable, true)
 
-	lo = cpu.Bus.Read(0xFFFE)
-	hi = cpu.Bus.Read(0xFFFF)
+	lo = cpu.BusRead(0xFFFE)
+	hi = cpu.BusRead(0xFFFF)
 
 	cpu.Pc = (uint16(hi) << 8) | uint16(lo)
 }

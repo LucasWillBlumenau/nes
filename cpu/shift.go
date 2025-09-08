@@ -7,10 +7,10 @@ import (
 func Asl(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction ASL...")
 
-	value := cpu.Bus.Read(fetchedValue)
+	value := cpu.BusRead(fetchedValue)
 	result := value << 1
 
-	cpu.Bus.Write(fetchedValue, result)
+	cpu.BusWrite(fetchedValue, result)
 
 	cpu.SetStatusFlag(StatusFlagCarry, (value&0x80) != 0)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
@@ -20,10 +20,10 @@ func Asl(cpu *CPU, fetchedValue uint16) {
 func Lsr(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction LSR...")
 
-	value := cpu.Bus.Read(fetchedValue)
+	value := cpu.BusRead(fetchedValue)
 	result := value >> 1
 
-	cpu.Bus.Write(fetchedValue, result)
+	cpu.BusWrite(fetchedValue, result)
 
 	cpu.SetStatusFlag(StatusFlagCarry, (value&0x01) != 0)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
@@ -39,10 +39,10 @@ func Rol(cpu *CPU, fetchedValue uint16) {
 		carryBit = 0
 	}
 
-	value := cpu.Bus.Read(fetchedValue)
+	value := cpu.BusRead(fetchedValue)
 	result := (value << 1) | carryBit
 
-	cpu.Bus.Write(fetchedValue, result)
+	cpu.BusWrite(fetchedValue, result)
 
 	cpu.SetStatusFlag(StatusFlagCarry, (value&0x80) != 0)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
@@ -59,10 +59,10 @@ func Ror(cpu *CPU, fetchedValue uint16) {
 		carryBit = 0
 	}
 
-	value := cpu.Bus.Read(fetchedValue)
+	value := cpu.BusRead(fetchedValue)
 	result := (value >> 1) | carryBit
 
-	cpu.Bus.Write(fetchedValue, result)
+	cpu.BusWrite(fetchedValue, result)
 
 	cpu.SetStatusFlag(StatusFlagCarry, (value&0x01) != 0)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)

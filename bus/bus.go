@@ -1,8 +1,22 @@
 package bus
 
-import "github.com/LucasWillBlumenau/nes/cartridge"
+import (
+	"github.com/LucasWillBlumenau/nes/cartridge"
+	"github.com/LucasWillBlumenau/nes/ppu"
+)
 
+// memory unit constants
 const kb = 1024
+
+// ppu register constants
+const ppuControlPortAddr uint16 = 0x2000
+const ppuMaskPortAddr uint16 = 0x2001
+const ppuStatusPortAddr uint16 = 0x2002
+const ppuOAMAddressPortAddr = 0x2003
+const ppuOAMDataPortAddr = 0x2004
+const ppuScrollPortAddr = 0x2005
+const ppuVRamAddressPortAddr = 0x2006
+const ppuVRamDataPortAddr = 0x2007
 
 // low byte, followed by high byte
 var nmiAddressLocation = []uint16{0xFFFA, 0xFFFB}
@@ -10,38 +24,64 @@ var resetAddressLocation = []uint16{0xFFFC, 0xFFFD}
 var irqAddressLocation = []uint16{0xFFFE, 0xFFFF}
 
 type Bus struct {
-	ram          []byte
-	vram         []byte
-	ppuRegisters ppuRegisters
-	cartridge    *cartridge.Cartridge
+	ram       []uint8
+	cartridge *cartridge.Cartridge
+	ppu       *ppu.PPU
 }
 
-type ppuRegisters struct {
-	ControlRegister1      uint8
-	ControlRegister2      uint8
-	StatusRegister        uint8
-	SPRRamAddressRegister uint8
-	SPRRamIORegister      uint8
-	VRamRegister1         uint8
-	VRamRegister2         uint8
-	VRamIORegister        uint8
-}
-
-func NewBus(cartridge *cartridge.Cartridge) *Bus {
+func NewBus(ppu *ppu.PPU, cartridge *cartridge.Cartridge) *Bus {
 	ram := make([]byte, 2*kb)
-	vram := make([]byte, 16*kb)
-	return &Bus{cartridge: cartridge, ram: ram, vram: vram}
+	return &Bus{cartridge: cartridge, ram: ram, ppu: ppu}
 }
 
 func (b *Bus) Write(addr uint16, value uint8) {
+	valueAddress := b.getValueAddress(addr)
+	if valueAddress != nil {
+		*valueAddress = value
+	}
 
+	addr &= 0x2007
+	switch addr {
+	case ppuControlPortAddr:
+		b.ppu.WritePPUControlPort(value)
+	case ppuMaskPortAddr:
+		b.ppu.WritePPUMaskPort(value)
+	case ppuOAMAddressPortAddr:
+		b.ppu.WriteOAMAddrPort(value)
+	case ppuOAMDataPortAddr:
+		b.ppu.WriteOAMDataPort(value)
+	case ppuScrollPortAddr:
+		b.ppu.WritePPUScrollPort(value)
+	case ppuVRamAddressPortAddr:
+		b.ppu.WritePPUAddrPort(value)
+	case ppuVRamDataPortAddr:
+		b.ppu.WritePPUDataPort(value)
+	}
+
+	panic("invalid address found")
 }
 
 func (b *Bus) Read(addr uint16) uint8 {
-	isReadFromRam := addr < 0x2000
-	if isReadFromRam {
-		addr = addr & 0x07FF
-		return b.ram[addr]
+	valueAddress := b.getValueAddress(addr)
+	if valueAddress != nil {
+		return *valueAddress
+	}
+
+	addr &= 0x2007
+	switch addr {
+	case ppuStatusPortAddr:
+	case ppuOAMDataPortAddr:
+	case ppuVRamDataPortAddr:
+	}
+
+	panic("invalid address found")
+}
+
+func (b *Bus) getValueAddress(addr uint16) *uint8 {
+	isRam := addr < 0x2000
+	if isRam {
+		addr &= 0x07FF
+		return &b.ram[addr]
 	}
 
 	isReadFromRom := addr >= 0x8000
@@ -50,8 +90,7 @@ func (b *Bus) Read(addr uint16) uint8 {
 			addr &= 0xBFFF
 		}
 		addr -= 0x8000
-		return b.cartridge.ProgramRom[addr]
+		return &b.cartridge.ProgramRom[addr]
 	}
-
-	return 0
+	return nil
 }
