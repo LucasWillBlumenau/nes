@@ -1,6 +1,6 @@
 package cpu
 
-var instructionMap = []*Instruction{
+var instructionMap = [256]*Instruction{
 	0xA9: {Dispatch: Lda, AddressingMode: Immediate},
 	0xAD: {Dispatch: Lda, AddressingMode: AbsoluteValue},
 	0xBD: {Dispatch: Lda, AddressingMode: XIndexedAbsoluteValue},

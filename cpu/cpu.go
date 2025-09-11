@@ -10,6 +10,9 @@ import (
 
 var ErrInvalidInstruction = errors.New("invalid instruction")
 
+const nmiLowByteAddress = 0xFFFA
+const nmiHighByteAddress = 0xFFFB
+
 type CPU struct {
 	A   uint8
 	X   uint8
@@ -84,10 +87,13 @@ func (c *CPU) executeInstruction() error {
 }
 
 func (c *CPU) attendInterrupt(interrupt interruption.Interruption) {
+	fmt.Printf("Attenting interrupt %d\n", interrupt)
 
 	switch interrupt {
 	case interruption.NonMaskableInterrupt:
-		// TODO: handle non maskable interrupt
+		lo := c.BusRead(nmiLowByteAddress)
+		hi := c.BusRead(nmiHighByteAddress)
+		c.Pc = uint16(hi)<<8 + uint16(lo)
 	}
 
 }

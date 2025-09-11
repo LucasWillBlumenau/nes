@@ -9,6 +9,16 @@ import (
 const kb = 1024
 const statusVBlank uint8 = 0b10000000
 
+const (
+	controlBaseNameTableAddr          = 0b00000011
+	controlIncrementSize              = 0b00000100 // 0 = 1, 1 = 32
+	controlSpritePatternTableAddr     = 0b00001000
+	controlBackgroundPatternTableAddr = 0b00010000 // 0 = 0x0000, 1 = 0x1000
+	controlSpriteSize                 = 0b00100000 // 0 = 8x8, 1 = 8x16
+	controlMasterSlaveSelect          = 0b01000000
+	controlPortNmiEnabled             = 0b10000000
+)
+
 type ppuPorts struct {
 	Control uint8
 	Mask    uint8
@@ -47,8 +57,10 @@ func (p *PPU) performScanline(number int) {
 }
 
 func (p *PPU) vBlank() {
+	if (p.ppuPorts.Control & controlPortNmiEnabled) > 0 {
+		interruption.InterruptionHandler <- interruption.NonMaskableInterrupt
+	}
 	p.ppuPorts.Status |= statusVBlank
-	interruption.InterruptionHandler <- interruption.NonMaskableInterrupt
 	time.Sleep(time.Millisecond * 50)
 }
 
@@ -98,9 +110,8 @@ func (p *PPU) WritePPUAddrPort(value uint8) {
 }
 
 func (p *PPU) WritePPUDataPort(value uint8) {
-	incrementSizeFlag := (p.ppuPorts.Control & 00000100) > 0
 	var incrementSize uint16
-	if incrementSizeFlag {
+	if (p.ppuPorts.Control & controlIncrementSize) > 0 {
 		incrementSize = 32
 	} else {
 		incrementSize = 1

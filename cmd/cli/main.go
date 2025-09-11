@@ -15,13 +15,6 @@ import (
 	"github.com/LucasWillBlumenau/nes/ppu"
 )
 
-var pixelMap = [4]color.RGBA{
-	{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}, // black
-	{R: 0x55, G: 0x55, B: 0xFF, A: 0xFF}, // blue
-	{R: 0xFF, G: 0x55, B: 0x55, A: 0xFF}, // red
-	{R: 0xFF, G: 0xFF, B: 0xAA, A: 0xFF}, // yellow/cream
-}
-
 func main() {
 
 	fp, err := os.Open("rom.nes")
@@ -47,6 +40,12 @@ func main() {
 func savePatternTable(cart *cartridge.Cartridge) {
 
 	fmt.Printf("Length: %04x\n", len(cart.CharacterRom))
+	var pixelMap = [4]color.RGBA{
+		{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}, // black
+		{R: 0x55, G: 0x55, B: 0xFF, A: 0xFF}, // blue
+		{R: 0xFF, G: 0x55, B: 0x55, A: 0xFF}, // red
+		{R: 0xFF, G: 0xFF, B: 0xAA, A: 0xFF}, // yellow/cream
+	}
 
 	type Tile [8][8]uint8
 
@@ -80,8 +79,8 @@ func savePatternTable(cart *cartridge.Cartridge) {
 		tileX := (i % 32) * 8
 		tileY := (i / 32) * 8
 
-		for y := 0; y < 8; y++ {
-			for x := 0; x < 8; x++ {
+		for y := range 8 {
+			for x := range 8 {
 				index := tile[y][x]
 				image.Set(tileX+x, tileY+y, pixelMap[index])
 			}
