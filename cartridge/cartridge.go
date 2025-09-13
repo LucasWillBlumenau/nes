@@ -31,9 +31,9 @@ type Cartridge struct {
 func LoadCartridgeFromReader(r io.ReadCloser) (*Cartridge, error) {
 	defer r.Close()
 
-	headersBuffer := make([]byte, headersSize)
+	headers := make([]byte, headersSize)
 
-	n, err := r.Read(headersBuffer)
+	n, err := r.Read(headers)
 	if err != nil {
 		return nil, err
 	}
@@ -42,13 +42,13 @@ func LoadCartridgeFromReader(r io.ReadCloser) (*Cartridge, error) {
 		return nil, ErrInvalidRomFile
 	}
 
-	programBanks := headersBuffer[programBanksIndex]
+	programBanks := headers[programBanksIndex]
 	programSize := uint16(programBanks) * 16 * 1024
-	charactersBanks := headersBuffer[charactersBanksIndex]
+	charactersBanks := headers[charactersBanksIndex]
 	charactersSize := uint16(charactersBanks) * 8 * 1024
-	firstControlByte := headersBuffer[firstControlByteIndex]
-	secondControlByte := headersBuffer[secondControlByteIndex]
-	ramBanksQuantity := headersBuffer[ramBanksQuantityIndex]
+	firstControlByte := headers[firstControlByteIndex]
+	secondControlByte := headers[secondControlByteIndex]
+	ramBanksQuantity := headers[ramBanksQuantityIndex]
 
 	useVerticalMirroring := (firstControlByte & 0b1) == 1
 	useBatteryBackedRam := (firstControlByte & 0b10) == 1
