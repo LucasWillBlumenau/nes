@@ -149,25 +149,25 @@ var instructionMap = [256]*Instruction{
 	// PLP
 	0x28: {Dispatch: Plp, AddressingMode: Implied, Cycles: 4},
 	// ASL
-	0x0A: {Dispatch: Asl, AddressingMode: Accumulator, Cycles: 2},
+	0x0A: {Dispatch: AslAccumulator, AddressingMode: Accumulator, Cycles: 2},
 	0x0E: {Dispatch: Asl, AddressingMode: Absolute, Cycles: 6},
 	0x1E: {Dispatch: Asl, AddressingMode: XIndexedAbsolute, Cycles: 7},
 	0x06: {Dispatch: Asl, AddressingMode: ZeroPage, Cycles: 5},
 	0x16: {Dispatch: Asl, AddressingMode: XIndexedZeroPage, Cycles: 6},
 	// LSR
-	0x4A: {Dispatch: Lsr, AddressingMode: Accumulator, Cycles: 2},
+	0x4A: {Dispatch: LsrAccumulator, AddressingMode: Accumulator, Cycles: 2},
 	0x4E: {Dispatch: Lsr, AddressingMode: Absolute, Cycles: 6},
 	0x5E: {Dispatch: Lsr, AddressingMode: XIndexedAbsolute, Cycles: 7},
 	0x46: {Dispatch: Lsr, AddressingMode: ZeroPage, Cycles: 5},
 	0x56: {Dispatch: Lsr, AddressingMode: XIndexedZeroPage, Cycles: 6},
 	// ROL
-	0x2A: {Dispatch: Rol, AddressingMode: Accumulator, Cycles: 2},
+	0x2A: {Dispatch: RolAccumulator, AddressingMode: Accumulator, Cycles: 2},
 	0x2E: {Dispatch: Rol, AddressingMode: Absolute, Cycles: 6},
 	0x3E: {Dispatch: Rol, AddressingMode: XIndexedAbsolute, Cycles: 7},
 	0x26: {Dispatch: Rol, AddressingMode: ZeroPage, Cycles: 5},
 	0x36: {Dispatch: Rol, AddressingMode: XIndexedZeroPage, Cycles: 6},
 	// ROR
-	0x6A: {Dispatch: Ror, AddressingMode: Accumulator, Cycles: 2},
+	0x6A: {Dispatch: RorAccumulator, AddressingMode: Accumulator, Cycles: 2},
 	0x6E: {Dispatch: Ror, AddressingMode: Absolute, Cycles: 6},
 	0x7E: {Dispatch: Ror, AddressingMode: XIndexedAbsolute, Cycles: 7},
 	0x66: {Dispatch: Ror, AddressingMode: ZeroPage, Cycles: 5},
