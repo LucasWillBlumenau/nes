@@ -136,3 +136,138 @@ func TestSbcInstruction(t *testing.T) {
 	}
 
 }
+
+func TestCmpInstruction(t *testing.T) {
+	tests := []struct {
+		name      string
+		cpu       cpu.CPU
+		value     uint16
+		wantZFlag bool
+		wantCFlag bool
+		wantNFlag bool
+	}{
+		{
+			name:      "Test comparasion with equal number",
+			cpu:       cpu.CPU{A: 68},
+			value:     68,
+			wantZFlag: true,
+			wantNFlag: false,
+			wantCFlag: true,
+		},
+		{
+			name:      "Test comparasion with greater number",
+			cpu:       cpu.CPU{A: 68},
+			value:     70,
+			wantZFlag: false,
+			wantNFlag: true,
+			wantCFlag: false,
+		},
+		{
+			name:      "Test comparasion with smaller number",
+			cpu:       cpu.CPU{A: 68},
+			value:     67,
+			wantZFlag: false,
+			wantNFlag: false,
+			wantCFlag: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cpu.Cmp(&test.cpu, test.value)
+			require.Equal(t, test.wantCFlag, test.cpu.GetStatusFlag(cpu.StatusFlagCarry))
+			require.Equal(t, test.wantZFlag, test.cpu.GetStatusFlag(cpu.StatusFlagZero))
+			require.Equal(t, test.wantNFlag, test.cpu.GetStatusFlag(cpu.StatusFlagNegative))
+		})
+	}
+}
+
+func TestCpxInstruction(t *testing.T) {
+	tests := []struct {
+		name      string
+		cpu       cpu.CPU
+		value     uint16
+		wantZFlag bool
+		wantCFlag bool
+		wantNFlag bool
+	}{
+		{
+			name:      "Test comparasion with equal number",
+			cpu:       cpu.CPU{X: 68},
+			value:     68,
+			wantZFlag: true,
+			wantNFlag: false,
+			wantCFlag: true,
+		},
+		{
+			name:      "Test comparasion with greater number",
+			cpu:       cpu.CPU{X: 68},
+			value:     70,
+			wantZFlag: false,
+			wantNFlag: true,
+			wantCFlag: false,
+		},
+		{
+			name:      "Test comparasion with smaller number",
+			cpu:       cpu.CPU{X: 68},
+			value:     67,
+			wantZFlag: false,
+			wantNFlag: false,
+			wantCFlag: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cpu.Cpx(&test.cpu, test.value)
+			require.Equal(t, test.wantCFlag, test.cpu.GetStatusFlag(cpu.StatusFlagCarry))
+			require.Equal(t, test.wantZFlag, test.cpu.GetStatusFlag(cpu.StatusFlagZero))
+			require.Equal(t, test.wantNFlag, test.cpu.GetStatusFlag(cpu.StatusFlagNegative))
+		})
+	}
+}
+
+func TestCpyInstruction(t *testing.T) {
+	tests := []struct {
+		name      string
+		cpu       cpu.CPU
+		value     uint16
+		wantZFlag bool
+		wantCFlag bool
+		wantNFlag bool
+	}{
+		{
+			name:      "Test comparasion with equal number",
+			cpu:       cpu.CPU{Y: 68},
+			value:     68,
+			wantZFlag: true,
+			wantNFlag: false,
+			wantCFlag: true,
+		},
+		{
+			name:      "Test comparasion with greater number",
+			cpu:       cpu.CPU{Y: 68},
+			value:     70,
+			wantZFlag: false,
+			wantNFlag: true,
+			wantCFlag: false,
+		},
+		{
+			name:      "Test comparasion with smaller number",
+			cpu:       cpu.CPU{Y: 68},
+			value:     67,
+			wantZFlag: false,
+			wantNFlag: false,
+			wantCFlag: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cpu.Cpy(&test.cpu, test.value)
+			require.Equal(t, test.wantCFlag, test.cpu.GetStatusFlag(cpu.StatusFlagCarry))
+			require.Equal(t, test.wantZFlag, test.cpu.GetStatusFlag(cpu.StatusFlagZero))
+			require.Equal(t, test.wantNFlag, test.cpu.GetStatusFlag(cpu.StatusFlagNegative))
+		})
+	}
+}
