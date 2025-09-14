@@ -45,7 +45,7 @@ func (b *bus) getAddress(addr uint16) *uint8 {
 		return &b.rom[addr]
 	}
 
-	// TODO: handle horizontal and vertical mirroring, for now it's assumed is horizontal
+	// TODO: handle horizontal and vertical mirroring, for now it's assumed it is horizontal
 	isNameTableAddress := addr < 0x03F00
 	if isNameTableAddress {
 		nameTableIndex := addr >> 10 & 0b11

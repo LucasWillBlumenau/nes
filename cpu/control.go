@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// TODO: abstract Brk interrupt functionally in cpu.attendInterrupt function
 func Brk(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction BRK...")
 
@@ -18,8 +19,8 @@ func Brk(cpu *CPU, fetchedValue uint16) {
 
 	cpu.SetStatusFlag(StatusFlagInterruptDisable, true)
 
-	lo = cpu.BusRead(0xFFFE)
-	hi = cpu.BusRead(0xFFFF)
+	lo = cpu.BusRead(irqLowByteAddress)
+	hi = cpu.BusRead(irqHighByteAddress)
 
 	cpu.Pc = (uint16(hi) << 8) | uint16(lo)
 }
@@ -48,10 +49,10 @@ func Rti(cpu *CPU, _ uint16) {
 
 	cpu.P = cpu.Pop()
 
-	programCounterLo := cpu.Pop()
-	programCounterHi := cpu.Pop()
+	lo := cpu.Pop()
+	hi := cpu.Pop()
 
-	cpu.Pc = (uint16(programCounterHi) << 8) | uint16(programCounterLo)
+	cpu.Pc = (uint16(hi) << 8) | uint16(lo)
 }
 
 func Rts(cpu *CPU, _ uint16) {

@@ -35,7 +35,7 @@ func TestBccInstruction(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.cpu.SetStatusFlag(cpu.StatusFlagCarry, test.flag)
 			cpu.Bcc(&test.cpu, test.value)
-			require.Equal(t, test.cpu.Pc, test.wantAddress)
+			require.Equal(t, test.wantAddress, test.cpu.Pc)
 		})
 	}
 }
@@ -68,7 +68,7 @@ func TestBcsInstruction(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.cpu.SetStatusFlag(cpu.StatusFlagCarry, test.flag)
 			cpu.Bcs(&test.cpu, test.value)
-			require.Equal(t, test.cpu.Pc, test.wantAddress)
+			require.Equal(t, test.wantAddress, test.cpu.Pc)
 		})
 	}
 }
@@ -101,7 +101,7 @@ func TestBeqInstruction(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.cpu.SetStatusFlag(cpu.StatusFlagZero, test.flag)
 			cpu.Beq(&test.cpu, test.value)
-			require.Equal(t, test.cpu.Pc, test.wantAddress)
+			require.Equal(t, test.wantAddress, test.cpu.Pc)
 		})
 	}
 }
@@ -134,7 +134,7 @@ func TestBmiInstruction(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.cpu.SetStatusFlag(cpu.StatusFlagNegative, test.flag)
 			cpu.Bmi(&test.cpu, test.value)
-			require.Equal(t, test.cpu.Pc, test.wantAddress)
+			require.Equal(t, test.wantAddress, test.cpu.Pc)
 		})
 	}
 }
@@ -167,7 +167,7 @@ func TestBneInstruction(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.cpu.SetStatusFlag(cpu.StatusFlagZero, test.flag)
 			cpu.Bne(&test.cpu, test.value)
-			require.Equal(t, test.cpu.Pc, test.wantAddress)
+			require.Equal(t, test.wantAddress, test.cpu.Pc)
 		})
 	}
 }
@@ -200,7 +200,7 @@ func TestBplInstruction(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.cpu.SetStatusFlag(cpu.StatusFlagNegative, test.flag)
 			cpu.Bpl(&test.cpu, test.value)
-			require.Equal(t, test.cpu.Pc, test.wantAddress)
+			require.Equal(t, test.wantAddress, test.cpu.Pc)
 		})
 	}
 }
@@ -233,7 +233,7 @@ func TestBvcInstruction(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.cpu.SetStatusFlag(cpu.StatusFlagOverflow, test.flag)
 			cpu.Bvc(&test.cpu, test.value)
-			require.Equal(t, test.cpu.Pc, test.wantAddress)
+			require.Equal(t, test.wantAddress, test.cpu.Pc)
 		})
 	}
 }
@@ -266,7 +266,7 @@ func TestBvsInstruction(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			test.cpu.SetStatusFlag(cpu.StatusFlagOverflow, test.flag)
 			cpu.Bvs(&test.cpu, test.value)
-			require.Equal(t, test.cpu.Pc, test.wantAddress)
+			require.Equal(t, test.wantAddress, test.cpu.Pc)
 		})
 	}
 }

@@ -40,22 +40,24 @@ func (b *Bus) Write(addr uint16, value uint8) {
 		*valueAddress = value
 	}
 
-	addr &= 0x2007
-	switch addr {
-	case ppuControlPortAddr:
-		b.ppu.WritePPUControlPort(value)
-	case ppuMaskPortAddr:
-		b.ppu.WritePPUMaskPort(value)
-	case ppuOAMAddressPortAddr:
-		b.ppu.WriteOAMAddrPort(value)
-	case ppuOAMDataPortAddr:
-		b.ppu.WriteOAMDataPort(value)
-	case ppuScrollPortAddr:
-		b.ppu.WritePPUScrollPort(value)
-	case ppuVRamAddressPortAddr:
-		b.ppu.WritePPUAddrPort(value)
-	case ppuVRamDataPortAddr:
-		b.ppu.WritePPUDataPort(value)
+	if addr < 0x4000 {
+		addr &= 0x2007
+		switch addr {
+		case ppuControlPortAddr:
+			b.ppu.WritePPUControlPort(value)
+		case ppuMaskPortAddr:
+			b.ppu.WritePPUMaskPort(value)
+		// case ppuOAMAddressPortAddr:
+		// 	b.ppu.WriteOAMAddrPort(value)
+		// case ppuOAMDataPortAddr:
+		// 	b.ppu.WriteOAMDataPort(value)
+		// case ppuScrollPortAddr:
+		// 	b.ppu.WritePPUScrollPort(value)
+		case ppuVRamAddressPortAddr:
+			b.ppu.WritePPUAddrPort(value)
+		case ppuVRamDataPortAddr:
+			b.ppu.WritePPUDataPort(value)
+		}
 	}
 
 	// TODO: check out behavior when doing writes to addresses that should only be read

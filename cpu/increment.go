@@ -8,7 +8,7 @@ func Dec(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction DEC...")
 
 	currentValue := cpu.BusRead(fetchedValue)
-	result := currentValue - 1 // uint8 wraps automatically in Go
+	result := currentValue - 1
 
 	cpu.SetStatusFlag(StatusFlagNegative, (result>>7) == 1)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
@@ -19,7 +19,7 @@ func Dec(cpu *CPU, fetchedValue uint16) {
 func Dex(cpu *CPU, _ uint16) {
 	fmt.Println("Executing instruction DEX...")
 
-	cpu.X-- // uint8 wraps automatically
+	cpu.X--
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.X>>7) == 1)
 	cpu.SetStatusFlag(StatusFlagZero, cpu.X == 0)
 }
@@ -36,7 +36,7 @@ func Inc(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction INC...")
 
 	currentValue := cpu.BusRead(fetchedValue)
-	result := currentValue + 1 // uint8 wraps automatically
+	result := currentValue + 1
 
 	cpu.SetStatusFlag(StatusFlagNegative, (result>>7) == 1)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)

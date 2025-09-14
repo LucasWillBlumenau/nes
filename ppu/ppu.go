@@ -1,18 +1,19 @@
 package ppu
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"os"
-	"time"
 
-	"github.com/LucasWillBlumenau/nes/interruption"
+	"github.com/LucasWillBlumenau/nes/interrupt"
 )
 
 const kb = 1024
 const statusVBlank uint8 = 0b10000000
+const visibleScalines = 240
+const totalScanlines = 261
+const dotsPerScanline = 341
 
 const (
 	controlBaseNameTableAddr          = 0b00000011
@@ -31,40 +32,46 @@ type ppuPorts struct {
 }
 
 type PPU struct {
-	oddFrame       bool
-	vram           []uint8
-	ppuPorts       ppuPorts
-	writeLatch     bool
-	currentAddress uint16
-	bus            bus
-	framesCount    uint
-	tiles          []Tile
+	oddFrame        bool
+	ppuPorts        ppuPorts
+	writeLatch      bool
+	currentAddress  uint16
+	bufferedData    uint8
+	bus             bus
+	tiles           []Tile
+	currentScanline uint16
+	currentDot      uint16
+	VBlankCount     uint
+	ElapseCycles    uint
 }
 
 func NewPPU(chrRom []uint8) *PPU {
-	vram := make([]uint8, 2*kb)
 	tiles := generateTilesFromChrRom(chrRom)
-	return &PPU{oddFrame: false, vram: vram, writeLatch: false, bus: newBus(chrRom), tiles: tiles}
+	return &PPU{oddFrame: false, writeLatch: false, bus: newBus(chrRom), tiles: tiles}
 }
 
-func (p *PPU) Run() {
-	for {
-		p.generateFrame()
-	}
-}
+func (p *PPU) ElapseCPUCycles(cpuCycles uint8) {
+	remaingPPUCycles := cpuCycles * 3
+	for remaingPPUCycles > 0 {
+		if p.currentScanline == 240 && p.currentDot == 0 {
+			p.OutputCurrentNameTable()
+			p.vBlank()
+		}
 
-func (p *PPU) generateFrame() {
-	for scanlineNumber := range 240 {
-		// perform scanline
-		p.performScanline(scanlineNumber)
+		if p.currentDot == (dotsPerScanline - 1) {
+			if p.currentScanline == (totalScanlines - 1) {
+				p.currentScanline = 0
+			} else {
+				p.currentScanline++
+			}
+			p.currentDot = 0
+		} else {
+			p.currentDot++
+		}
+		remaingPPUCycles--
+		p.ElapseCycles++
 	}
 
-	if p.framesCount == 5 {
-		saveImage(p.tiles, p.bus.rom[256:])
-	}
-
-	p.framesCount++
-	p.vBlank()
 }
 
 func (p *PPU) performScanline(number int) {
@@ -72,10 +79,10 @@ func (p *PPU) performScanline(number int) {
 
 func (p *PPU) vBlank() {
 	if (p.ppuPorts.Control & controlPortNmiEnabled) > 0 {
-		interruption.InterruptionHandler <- interruption.NonMaskableInterrupt
+		interrupt.InterruptSignal.Send(interrupt.NonMaskableInterrupt)
 	}
 	p.ppuPorts.Status |= statusVBlank
-	time.Sleep(time.Millisecond * 50)
+	p.VBlankCount++
 }
 
 func (p *PPU) ReadStatusPort() uint8 {
@@ -91,7 +98,9 @@ func (p *PPU) ReadOAMDataPort() uint8 {
 }
 
 func (p *PPU) ReadVRamDataPort() uint8 {
-	return 0
+	data := p.bufferedData
+	p.bufferedData = p.bus.read(p.currentAddress)
+	return data
 }
 
 func (p *PPU) WritePPUControlPort(value uint8) {
@@ -116,7 +125,7 @@ func (p *PPU) WritePPUScrollPort(value uint8) {
 
 func (p *PPU) WritePPUAddrPort(value uint8) {
 	if p.writeLatch {
-		p.currentAddress += uint16(value)
+		p.currentAddress = (p.currentAddress & 0xFF00) | (uint16(value))
 	} else {
 		p.currentAddress = uint16(value) << 8
 	}
@@ -166,17 +175,17 @@ func generateTilesFromChrRom(rom []uint8) []Tile {
 	return tiles
 }
 
-func saveImage(tiles []Tile, indexes []uint8) {
+func (p *PPU) OutputCurrentNameTable() {
 	var pixelMap = [4]color.RGBA{
 		{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}, // black
 		{R: 0x55, G: 0x55, B: 0xFF, A: 0xFF}, // blue
 		{R: 0xFF, G: 0x55, B: 0x55, A: 0xFF}, // red
 		{R: 0xFF, G: 0xFF, B: 0xAA, A: 0xFF}, // yellow/cream
 	}
-	image := image.NewRGBA(image.Rect(0, 0, 256, 128))
+	image := image.NewRGBA(image.Rect(0, 0, 256, 240))
 
-	for i, tileIdx := range indexes {
-		tile := tiles[tileIdx]
+	for i, tileIdx := range p.bus.ram[0:960] {
+		tile := p.tiles[tileIdx]
 		tileX := (i % 32) * 8
 		tileY := (i / 32) * 8
 
@@ -192,8 +201,4 @@ func saveImage(tiles []Tile, indexes []uint8) {
 	defer out.Close()
 
 	png.Encode(out, image)
-
-	fmt.Printf("Found %d tiles\n", len(tiles))
-
-	os.Exit(0)
 }
