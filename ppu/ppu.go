@@ -1,12 +1,10 @@
 package ppu
 
 import (
-	"image"
 	"image/color"
-	"image/png"
-	"os"
 
 	"github.com/LucasWillBlumenau/nes/interrupt"
+	"github.com/LucasWillBlumenau/nes/window"
 )
 
 const kb = 1024
@@ -32,6 +30,7 @@ type ppuPorts struct {
 }
 
 type PPU struct {
+	window          *window.Window
 	oddFrame        bool
 	ppuPorts        ppuPorts
 	writeLatch      bool
@@ -45,16 +44,22 @@ type PPU struct {
 	ElapseCycles    uint
 }
 
-func NewPPU(chrRom []uint8) *PPU {
+func NewPPU(window *window.Window, chrRom []uint8) *PPU {
 	tiles := generateTilesFromChrRom(chrRom)
-	return &PPU{oddFrame: false, writeLatch: false, bus: newBus(chrRom), tiles: tiles}
+	return &PPU{
+		oddFrame:   false,
+		writeLatch: false,
+		bus:        newBus(chrRom),
+		tiles:      tiles,
+		window:     window,
+	}
 }
 
 func (p *PPU) ElapseCPUCycles(cpuCycles uint8) {
 	remaingPPUCycles := cpuCycles * 3
 	for remaingPPUCycles > 0 {
 		if p.currentScanline == 240 && p.currentDot == 0 {
-			p.OutputCurrentNameTable()
+			p.outputCurrentNameTable()
 			p.vBlank()
 		}
 
@@ -175,14 +180,15 @@ func generateTilesFromChrRom(rom []uint8) []Tile {
 	return tiles
 }
 
-func (p *PPU) OutputCurrentNameTable() {
+func (p *PPU) outputCurrentNameTable() {
 	var pixelMap = [4]color.RGBA{
 		{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}, // black
 		{R: 0x55, G: 0x55, B: 0xFF, A: 0xFF}, // blue
 		{R: 0xFF, G: 0x55, B: 0x55, A: 0xFF}, // red
 		{R: 0xFF, G: 0xFF, B: 0xAA, A: 0xFF}, // yellow/cream
 	}
-	image := image.NewRGBA(image.Rect(0, 0, 256, 240))
+
+	image := make([]color.RGBA, p.window.Width()*p.window.Height())
 
 	for i, tileIdx := range p.bus.ram[0:960] {
 		tile := p.tiles[tileIdx]
@@ -192,13 +198,12 @@ func (p *PPU) OutputCurrentNameTable() {
 		for y := range 8 {
 			for x := range 8 {
 				index := tile[y][x]
-				image.Set(tileX+x, tileY+y, pixelMap[index])
+				color := pixelMap[index]
+				image[(tileX+x)+(tileY+y)*p.window.Width()] = color
 			}
 		}
 	}
 
-	out, _ := os.Create("output.png")
-	defer out.Close()
+	p.window.UpdateImageBuffer(image)
 
-	png.Encode(out, image)
 }
