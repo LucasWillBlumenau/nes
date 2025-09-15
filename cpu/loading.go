@@ -28,21 +28,18 @@ func Ldy(cpu *CPU, fetchedValue uint16) {
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.Y>>7) == 1)
 }
 
-// address
 func Sta(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction STA...")
 
 	cpu.BusWrite(fetchedValue, cpu.A)
 }
 
-// address
 func Stx(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction STX...")
 
 	cpu.BusWrite(fetchedValue, cpu.X)
 }
 
-// address
 func Sty(cpu *CPU, fetchedValue uint16) {
 	fmt.Println("Executing instruction STY...")
 

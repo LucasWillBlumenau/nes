@@ -30,14 +30,22 @@ type ppuPorts struct {
 }
 
 type PPU struct {
-	window          *window.Window
-	oddFrame        bool
-	ppuPorts        ppuPorts
-	writeLatch      bool
-	currentAddress  uint16
-	bufferedData    uint8
-	bus             bus
-	tiles           []Tile
+	window *window.Window
+	bus    bus
+
+	tiles []Tile
+
+	ppuPorts       ppuPorts
+	writeLatch     bool
+	oddFrame       bool
+	currentAddress uint16
+	bufferedData   uint8
+
+	coarseX uint8
+	coarseY uint8
+	fineX   uint8
+	fineY   uint8
+
 	currentScanline uint16
 	currentDot      uint16
 	VBlankCount     uint
@@ -45,11 +53,12 @@ type PPU struct {
 }
 
 func NewPPU(window *window.Window, chrRom []uint8) *PPU {
+	bus := newBus(chrRom)
 	tiles := generateTilesFromChrRom(chrRom)
 	return &PPU{
 		oddFrame:   false,
 		writeLatch: false,
-		bus:        newBus(chrRom),
+		bus:        bus,
 		tiles:      tiles,
 		window:     window,
 	}
@@ -58,28 +67,31 @@ func NewPPU(window *window.Window, chrRom []uint8) *PPU {
 func (p *PPU) ElapseCPUCycles(cpuCycles uint8) {
 	remaingPPUCycles := cpuCycles * 3
 	for remaingPPUCycles > 0 {
-		if p.currentScanline == 240 && p.currentDot == 0 {
-			p.outputCurrentNameTable()
-			p.vBlank()
-		}
-
-		if p.currentDot == (dotsPerScanline - 1) {
-			if p.currentScanline == (totalScanlines - 1) {
-				p.currentScanline = 0
-			} else {
-				p.currentScanline++
-			}
-			p.currentDot = 0
-		} else {
-			p.currentDot++
-		}
+		p.performScanlineStep()
 		remaingPPUCycles--
 		p.ElapseCycles++
 	}
 
 }
 
-func (p *PPU) performScanline(number int) {
+func (p *PPU) performScanlineStep() {
+	if p.currentScanline == 240 && p.currentDot == 0 {
+		p.outputCurrentNameTable()
+		p.vBlank()
+		p.currentDot = 1
+		return
+	}
+
+	if p.currentDot == (dotsPerScanline - 1) {
+		if p.currentScanline == (totalScanlines - 1) {
+			p.currentScanline = 0
+		} else {
+			p.currentScanline++
+		}
+		p.currentDot = 0
+		return
+	}
+	p.currentDot++
 }
 
 func (p *PPU) vBlank() {
@@ -125,7 +137,14 @@ func (p *PPU) WriteOAMDataPort(value uint8) {
 }
 
 func (p *PPU) WritePPUScrollPort(value uint8) {
-
+	if p.writeLatch {
+		p.coarseY = (value & 0b11111000) >> 3
+		p.fineY = (value & 0b00000111)
+	} else {
+		p.coarseX = (value & 0b11111000) >> 3
+		p.fineX = (value & 0b00000111)
+	}
+	p.writeLatch = !p.writeLatch
 }
 
 func (p *PPU) WritePPUAddrPort(value uint8) {
@@ -181,29 +200,34 @@ func generateTilesFromChrRom(rom []uint8) []Tile {
 }
 
 func (p *PPU) outputCurrentNameTable() {
-	var pixelMap = [4]color.RGBA{
-		{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}, // black
-		{R: 0x55, G: 0x55, B: 0xFF, A: 0xFF}, // blue
-		{R: 0xFF, G: 0x55, B: 0x55, A: 0xFF}, // red
-		{R: 0xFF, G: 0xFF, B: 0xAA, A: 0xFF}, // yellow/cream
+	image := make([]color.RGBA, p.window.Width()*p.window.Height())
+	nameTable := p.bus.ram[0:960]
+	attrTable := p.bus.ram[960:1024]
+	palettes := loadPalettes(p.bus.backgroundPalette)
+	tiles := p.tiles[:256]
+	if (p.ppuPorts.Control & controlBackgroundPatternTableAddr) > 0 {
+		tiles = p.tiles[256:]
 	}
 
-	image := make([]color.RGBA, p.window.Width()*p.window.Height())
-
-	for i, tileIdx := range p.bus.ram[0:960] {
-		tile := p.tiles[tileIdx]
+	for i, tileIdx := range nameTable {
+		tile := tiles[tileIdx]
 		tileX := (i % 32) * 8
 		tileY := (i / 32) * 8
+
+		attrTableX := tileX / 32
+		attrTableY := tileY / 32
+		attrTableByte := attrTable[attrTableX+attrTableY*8]
+		attrTableByteX := attrTableX % 2
+		attrTableByteY := attrTableY % 2
+		paletteId := (attrTableByte >> uint8(attrTableByteY<<1|attrTableByteX)) & 0b11
 
 		for y := range 8 {
 			for x := range 8 {
 				index := tile[y][x]
-				color := pixelMap[index]
+				color := palettes.Read(paletteId, index)
 				image[(tileX+x)+(tileY+y)*p.window.Width()] = color
 			}
 		}
 	}
-
 	p.window.UpdateImageBuffer(image)
-
 }

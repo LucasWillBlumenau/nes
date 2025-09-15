@@ -120,7 +120,7 @@ func (w *Window) createRenderer() *sdl.Renderer {
 
 func (w *Window) createWindow() *sdl.Window {
 	window, err := sdl.CreateWindow(
-		"Manual Update Example",
+		"NES",
 		sdl.WINDOWPOS_UNDEFINED,
 		sdl.WINDOWPOS_UNDEFINED,
 		int32(w.width)*2,

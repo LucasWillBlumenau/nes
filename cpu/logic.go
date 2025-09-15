@@ -17,8 +17,8 @@ func Bit(cpu *CPU, fetchedValue uint16) {
 
 	value := cpu.A & uint8(fetchedValue)
 
-	cpu.SetStatusFlag(StatusFlagNegative, (value>>7) == 1)
-	cpu.SetStatusFlag(StatusFlagOverflow, ((value>>6)&0b01) == 1)
+	cpu.SetStatusFlag(StatusFlagNegative, (fetchedValue>>7) == 1)
+	cpu.SetStatusFlag(StatusFlagOverflow, ((fetchedValue>>6)&0b01) == 1)
 	cpu.SetStatusFlag(StatusFlagZero, value == 0)
 }
 

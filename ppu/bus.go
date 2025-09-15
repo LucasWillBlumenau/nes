@@ -10,13 +10,23 @@ var nameTableMirrors = []uint16{
 const nameTableOffset uint16 = 0x2000
 
 type bus struct {
-	rom []uint8
-	ram []uint8
+	patternTables     []uint8
+	ram               []uint8
+	backgroundPalette []uint8
+	foregroundPalette []uint8
 }
 
 func newBus(rom []uint8) bus {
 	ram := make([]uint8, 2*kb)
-	return bus{rom: rom, ram: ram}
+	backgroundPalete := make([]uint8, 16)
+	foregroundPalete := make([]uint8, 16)
+
+	return bus{
+		patternTables:     rom,
+		ram:               ram,
+		backgroundPalette: backgroundPalete,
+		foregroundPalette: foregroundPalete,
+	}
 }
 
 func (b *bus) write(addr uint16, value uint8) {
@@ -42,7 +52,7 @@ func (b *bus) getAddress(addr uint16) *uint8 {
 
 	isChrRomAddr := addr < 0x2000
 	if isChrRomAddr {
-		return &b.rom[addr]
+		return &b.patternTables[addr]
 	}
 
 	// TODO: handle horizontal and vertical mirroring, for now it's assumed it is horizontal
@@ -53,6 +63,11 @@ func (b *bus) getAddress(addr uint16) *uint8 {
 		return &b.ram[addr-nameTableOffset]
 	}
 
-	// TODO: handle palettes and sprite palettes
-	return nil
+	addr &= 0x1F
+	isBackgroundColor := addr < 0x10
+	if isBackgroundColor {
+		return &b.backgroundPalette[addr]
+	} else {
+		return &b.foregroundPalette[addr-0x10]
+	}
 }

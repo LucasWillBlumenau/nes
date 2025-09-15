@@ -39,7 +39,7 @@ func NewCPU(bus *bus.Bus) *CPU {
 	}
 }
 
-func (c *CPU) SetResetInterruptHandlerAddressAsEntrypoint() {
+func (c *CPU) SetRomEntrypoint() {
 	lo := c.bus.Read(resetLowByteAddress)
 	hi := c.bus.Read(resetHighByteAddress)
 	romEntryPoint := uint16(hi)<<8 | uint16(lo)

@@ -15,7 +15,8 @@ import (
 const clockDurationInNanoseconds time.Duration = 559
 
 func main() {
-	fp, err := os.Open("rom.nes")
+	path := readCliArgs()
+	fp, err := os.Open(path)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -29,14 +30,25 @@ func main() {
 	ppu := ppu.NewPPU(window, cart.CharacterRom)
 	bus := bus.NewBus(ppu, cart)
 	cpu := cpu.NewCPU(bus)
-	cpu.SetResetInterruptHandlerAddressAsEntrypoint()
+	cpu.SetRomEntrypoint()
 
 	go window.Start()
-	for {
-		cyclesTaken, err := cpu.Run()
-		if err != nil {
-			log.Fatalln(err)
+	go func() {
+		for {
+			cyclesTaken, err := cpu.Run()
+			if err != nil {
+				log.Fatalln(err)
+			}
+			ppu.ElapseCPUCycles(cyclesTaken)
 		}
-		ppu.ElapseCPUCycles(cyclesTaken)
+	}()
+	<-window.CloseChannel
+}
+
+func readCliArgs() string {
+	args := os.Args[1:]
+	if len(args) != 1 {
+		log.Fatalln("the program only supports a rom path as argument")
 	}
+	return args[0]
 }
