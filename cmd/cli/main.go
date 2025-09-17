@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"os"
-	"time"
 
 	"github.com/LucasWillBlumenau/nes/bus"
 	"github.com/LucasWillBlumenau/nes/cartridge"
@@ -11,8 +10,6 @@ import (
 	"github.com/LucasWillBlumenau/nes/ppu"
 	"github.com/LucasWillBlumenau/nes/window"
 )
-
-const clockDurationInNanoseconds time.Duration = 559
 
 func main() {
 	path := readCliArgs()
@@ -26,6 +23,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// var window *window.Window
 	window := window.NewWindow(256, 240)
 	ppu := ppu.NewPPU(window, cart.CharacterRom)
 	bus := bus.NewBus(ppu, cart)
@@ -42,6 +40,13 @@ func main() {
 			ppu.ElapseCPUCycles(cyclesTaken)
 		}
 	}()
+	// for {
+	// 	cyclesTaken, err := cpu.Run()
+	// 	if err != nil {
+	// 		log.Fatalln(err)
+	// 	}
+	// 	ppu.ElapseCPUCycles(cyclesTaken)
+	// }
 	<-window.CloseChannel
 }
 

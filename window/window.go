@@ -76,7 +76,7 @@ func (w *Window) Start() {
 			w.updateImage(image)
 		default:
 		}
-		sdl.Delay(16)
+		// sdl.Delay(16)
 	}
 
 }

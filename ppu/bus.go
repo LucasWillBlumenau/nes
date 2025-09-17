@@ -16,12 +16,12 @@ type bus struct {
 	foregroundPalette []uint8
 }
 
-func newBus(rom []uint8) bus {
+func newBus(rom []uint8) *bus {
 	ram := make([]uint8, 2*kb)
 	backgroundPalete := make([]uint8, 16)
 	foregroundPalete := make([]uint8, 16)
 
-	return bus{
+	return &bus{
 		patternTables:     rom,
 		ram:               ram,
 		backgroundPalette: backgroundPalete,
@@ -45,7 +45,8 @@ func (b *bus) read(addr uint16) uint8 {
 	return 0
 }
 
-func (b *bus) getAddress(addr uint16) *uint8 {
+func (b *bus) getAddress(tempAddr uint16) *uint8 {
+	addr := tempAddr
 	if addr >= 0x4000 {
 		addr &= 0x3FFF
 	}
@@ -59,7 +60,8 @@ func (b *bus) getAddress(addr uint16) *uint8 {
 	isNameTableAddress := addr < 0x03F00
 	if isNameTableAddress {
 		nameTableIndex := addr >> 10 & 0b11
-		addr = (nameTableMirrors[nameTableIndex] << 10) | (addr & 0b1111001111111111)
+		nmTbl := nameTableMirrors[nameTableIndex]
+		addr = (nmTbl << 10) | (addr & 0b1111001111111111)
 		return &b.ram[addr-nameTableOffset]
 	}
 
