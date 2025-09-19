@@ -91,6 +91,7 @@ func (sb *scanlineImageBuilder) SetNewFrameState(coarseY uint8, fineY uint8, pat
 	sb.coarseY = uint16(coarseY)
 	sb.coarseX = 0
 	sb.patternTable = patternTable
+	sb.fineY = fineY
 }
 
 func (sb *scanlineImageBuilder) SetNewScanlineState(scanline uint16, fineX uint8) {
@@ -116,17 +117,14 @@ func (sb *scanlineImageBuilder) RunStep(dot uint16) []color.RGBA {
 	case stateFetchNametableSecondCycle:
 		sb.tileIndex = sb.bus.read(sb.currentAddr)
 	case stateFetchAttrtableFirstCycle:
-		attrTableX := (dot - 1) / 32
-		attrTableY := sb.scanline / 32
+		attrTableX := (sb.coarseX & 0b11100) >> 2
+		attrTableY := (sb.coarseY & 0b11100) >> 2
 		sb.currentAddr = (0b1000|sb.nametable)<<10 + 0x3C0 + attrTableX + attrTableY*8
-
 	case stateFetchAttrtableSecondCycle:
 		attrTableByte := sb.bus.read(sb.currentAddr)
-		tileX := (dot - 1) / 8
-		tileY := sb.scanline / 8
-		attrTableByteX := tileX % 2
-		attrTableByteY := tileY % 2
-		sb.paletteId = (attrTableByte >> uint8(attrTableByteY<<1|attrTableByteX)) & 0b11
+		attrTableX := (sb.coarseX & 0b10) >> 1
+		attrTableY := (sb.coarseY & 0b10)
+		sb.paletteId = (attrTableByte >> uint8(attrTableY|attrTableX)) & 0b11
 	case stateFetchPatternTableLowPlaneFirstCycle:
 		sb.currentAddr = (uint16(sb.tileIndex)*tileSize + uint16(sb.fineY)) | sb.patternTable
 	case stateFetchPatternTableLowPlaneSecondCycle:

@@ -2,7 +2,7 @@ package ppu
 
 import "image/color"
 
-var nesPalette = map[uint8]color.RGBA{
+var nesPalette = []color.RGBA{
 	0x00: {R: 0x75, G: 0x75, B: 0x75},
 	0x01: {R: 0x27, G: 0x1B, B: 0x8F},
 	0x02: {R: 0x00, G: 0x00, B: 0xAB},
@@ -67,30 +67,4 @@ var nesPalette = map[uint8]color.RGBA{
 	0x3D: {R: 0x00, G: 0x00, B: 0x00},
 	0x3E: {R: 0x00, G: 0x00, B: 0x00},
 	0x3F: {R: 0x00, G: 0x00, B: 0x00},
-}
-
-type palettes [4][4]color.RGBA
-
-func loadPalettes(paletteMem []uint8) palettes {
-	var palettes palettes
-	for i, value := range paletteMem {
-		palettes.write(uint8(i/4), uint8(i%4), value)
-	}
-	return palettes
-}
-
-func (p *palettes) write(paletteId uint8, colorIdx uint8, colorValue uint8) {
-	r, g, b, a := color.Transparent.RGBA()
-	color := color.RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: uint8(a)}
-	if colorIdx > 0 || paletteId == 0 {
-		color = nesPalette[colorValue]
-	}
-	(*p)[paletteId][colorIdx] = color
-}
-
-func (p *palettes) Read(paletteId uint8, colorIdx uint8) color.RGBA {
-	if colorIdx == 0 {
-		return (*p)[0][colorIdx]
-	}
-	return (*p)[paletteId][colorIdx]
 }

@@ -58,30 +58,28 @@ type PPU struct {
 func NewPPU(window *window.Window, chrRom []uint8) *PPU {
 	bus := newBus(chrRom)
 	scanlineImageBuilder := newScanlineImageBuilder(bus)
-	// tiles := generateTilesFromChrRom(chrRom)
 	return &PPU{
 		oddFrame:             false,
 		writeLatch:           false,
 		bus:                  bus,
 		scanlineImageBuilder: *scanlineImageBuilder,
-		// tiles:      tiles,
-		window: window,
+		window:               window,
 	}
 }
 
-func (p *PPU) ElapseCPUCycles(cpuCycles uint8) {
+func (p *PPU) ElapseCPUCycles(cpuCycles uint8) []color.RGBA {
 	remaingPPUCycles := cpuCycles * 3
+	var image []color.RGBA
 	for remaingPPUCycles > 0 {
 		if p.currentScanline == 0 && p.currentDot == 0 {
 			p.ppuPorts.Status &= disableStatusVBlank
-			p.window.UpdateImageBuffer(p.bufferedImage)
-			p.bufferedImage = nil
 			var basePatternTable uint16 = 0x0000
 			if (p.ppuPorts.Control | controlBackgroundPatternTableAddr) > 0 {
 				basePatternTable = 0x1000
 			}
-
 			p.scanlineImageBuilder.SetNewFrameState(p.coarseY, p.fineY, basePatternTable)
+			image = p.bufferedImage
+			p.bufferedImage = nil
 
 		} else if p.currentScanline == 240 && p.currentDot == 0 {
 			p.vBlank()
@@ -106,7 +104,7 @@ func (p *PPU) ElapseCPUCycles(cpuCycles uint8) {
 
 		remaingPPUCycles--
 	}
-
+	return image
 }
 
 func (p *PPU) vBlank() {
@@ -182,6 +180,33 @@ func (p *PPU) WritePPUDataPort(value uint8) {
 	p.currentAddress += incrementSize
 }
 
+func (p *PPU) GererateFrame() []color.RGBA {
+	image := make([]color.RGBA, p.window.Width()*p.window.Height())
+	nameTable := p.bus.ram[0:960]
+	attrTable := p.bus.ram[960:1024]
+	tiles := generateTilesFromChrRom(p.bus.backgroundPalette)
+
+	for i, tileIdx := range nameTable {
+		tile := tiles[tileIdx]
+		tileX := (i % 32) * 8
+		tileY := (i / 32) * 8
+		attrTableX := tileX / 32
+		attrTableY := tileY / 32
+		attrTableByte := attrTable[attrTableX+attrTableY*8]
+		attrTableByteX := attrTableX % 2
+		attrTableByteY := attrTableY % 2
+		paletteId := (attrTableByte >> uint8(attrTableByteY<<1|attrTableByteX)) & 0b11
+		for y := range 8 {
+			for x := range 8 {
+				index := tile[y][x]
+				color := p.bus.read(uint16(0x3F00) + uint16(paletteId)*4 + uint16(index))
+				image[(tileX+x)+(tileY+y)*p.window.Width()] = nesPalette[color]
+			}
+		}
+	}
+	return image
+}
+
 type Tile [8][8]uint8
 
 func generateTilesFromChrRom(rom []uint8) []Tile {
@@ -211,8 +236,4 @@ func generateTilesFromChrRom(rom []uint8) []Tile {
 	}
 
 	return tiles
-}
-
-func (p *PPU) outputCurrentNameTable() {
-	// p.window.UpdateImageBuffer(image)
 }

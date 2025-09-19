@@ -61,11 +61,11 @@ func (c *CPU) SetStatusFlag(flag StatusFlag, value bool) {
 func (c *CPU) Push(value uint8) {
 	stackAddress := uint16(c.Sp) | 0x0100
 	c.BusWrite(stackAddress, value)
-	c.Sp += 1
+	c.Sp -= 1
 }
 
 func (c *CPU) Pop() uint8 {
-	c.Sp--
+	c.Sp++
 	stackAddress := uint16(c.Sp) | 0x0100
 	value := c.BusRead(stackAddress)
 	return value
@@ -83,7 +83,7 @@ func (c *CPU) executeInstruction() (uint8, error) {
 	opcode := c.BusRead(c.Pc)
 
 	instruction := instructionMap[opcode]
-	if instruction == nil {
+	if instruction.Dispatch == nil {
 		return 0, fmt.Errorf("%w: invalid opcode %02X", ErrInvalidInstruction, opcode)
 	}
 
@@ -91,7 +91,7 @@ func (c *CPU) executeInstruction() (uint8, error) {
 
 	currentPc := c.Pc
 
-	value := c.fetchNextValue(instruction.AddressingMode)
+	value, extraCycles := c.fetchNextValue(instruction.AddressingMode)
 
 	diff := c.Pc - currentPc
 	var op1, op2 string
@@ -122,7 +122,7 @@ func (c *CPU) executeInstruction() (uint8, error) {
 	)
 
 	instruction.Dispatch(c, value)
-	return instruction.Cycles, nil
+	return instruction.Cycles + extraCycles, nil
 }
 
 func (c *CPU) attendInterrupt(interruptValue interrupt.Interrupt) {
@@ -149,22 +149,44 @@ func (c *CPU) attendInterrupt(interruptValue interrupt.Interrupt) {
 	c.Pc = uint16(intHandlerHi)<<8 + uint16(intHandlerLo)
 }
 
-func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
+func (c *CPU) fetchNextValue(addressingMode AddressingMode) (uint16, uint8) {
 	switch addressingMode {
 	case Implied, Accumulator:
-		return 0
+		return 0, 0
 	case Immediate:
-		return uint16(c.getImmediateValue())
+		return uint16(c.getImmediateValue()), 0
 	case XIndexedAbsoluteValue:
-		addr := c.getAbsoluteAddress() + uint16(c.X)
-		return uint16(c.BusRead(addr))
+		addr := c.getAbsoluteAddress()
+		addrPage := addr & 0xFF00
+		addr = addr + uint16(c.X)
+		if addrPage != (addr & 0xFF00) {
+			return uint16(c.BusRead(addr)), 1
+		}
+		return uint16(c.BusRead(addr)), 0
 	case XIndexedAbsolute:
-		return c.getAbsoluteAddress() + uint16(c.X)
+		addr := c.getAbsoluteAddress()
+		addrPage := addr & 0xFF00
+		addr = addr + uint16(c.X)
+		if addrPage != (addr & 0xFF00) {
+			return addr, 1
+		}
+		return addr, 0
 	case YIndexedAbsoluteValue:
-		addr := c.getAbsoluteAddress() + uint16(c.Y)
-		return uint16(c.BusRead(addr))
+		addr := c.getAbsoluteAddress()
+		addrPage := addr & 0xFF00
+		addr = addr + uint16(c.Y)
+		if addrPage != (addr & 0xFF00) {
+			return uint16(c.BusRead(addr)), 1
+		}
+		return uint16(c.BusRead(addr)), 0
 	case YIndexedAbsolute:
-		return c.getAbsoluteAddress() + uint16(c.Y)
+		addr := c.getAbsoluteAddress()
+		addrPage := addr & 0xFF00
+		addr = addr + uint16(c.Y)
+		if addrPage != (addr & 0xFF00) {
+			return addr, 1
+		}
+		return addr, 0
 	case AbsoluteIndirect:
 		loAddr := c.getAbsoluteAddress()
 		hiAddr := loAddr + 1
@@ -173,54 +195,68 @@ func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
 		}
 		lo := c.BusRead(loAddr)
 		hi := c.BusRead(hiAddr)
-		return uint16(hi)<<8 + uint16(lo)
+		return uint16(hi)<<8 + uint16(lo), 0
 	case AbsoluteValue:
 		addr := c.getAbsoluteAddress()
-		return uint16(c.BusRead(addr))
+		return uint16(c.BusRead(addr)), 0
 	case Absolute:
-		return c.getAbsoluteAddress()
+		return c.getAbsoluteAddress(), 0
 	case ZeroPageValue:
 		addr := uint16(c.getImmediateValue())
-		return uint16(c.BusRead(addr))
+		return uint16(c.BusRead(addr)), 0
 	case ZeroPage:
-		return uint16(c.getImmediateValue())
+		return uint16(c.getImmediateValue()), 0
 	case XIndexedZeroPageValue:
 		addr := uint16(c.getImmediateValue() + c.X)
-		return uint16(c.BusRead(addr))
+		return uint16(c.BusRead(addr)), 0
 	case XIndexedZeroPage:
-		return uint16(c.getImmediateValue() + c.X)
+		return uint16(c.getImmediateValue() + c.X), 0
 	case YIndexedZeroPageValue:
 		addr := uint16(c.getImmediateValue() + c.Y)
-		return uint16(c.BusRead(addr))
+		return uint16(c.BusRead(addr)), 0
 	case YIndexedZeroPage:
-		return uint16(c.getImmediateValue() + c.Y)
+		return uint16(c.getImmediateValue() + c.Y), 0
 	case Relative:
 		offset := int8(c.BusRead(c.Pc))
 		c.Pc++
-		return uint16(int16(c.Pc) + int16(offset))
+		nextAddr := uint16(int16(c.Pc) + int16(offset))
+		if (nextAddr & 0xFF00) != (c.Pc & 0xFF00) {
+			return nextAddr, 1
+		}
+		return nextAddr, 0
 	case XIndexedZeroPageIndirectValue:
 		addr := uint16(c.getImmediateValue() + c.X)
 		lo := c.BusRead(addr)
 		hi := c.BusRead(addr + 1)
 		addr = uint16(hi)<<8 + uint16(lo)
-		return uint16(c.BusRead(addr))
+		return uint16(c.BusRead(addr)), 0
 	case XIndexedZeroPageIndirect:
 		addr := uint16(c.getImmediateValue() + c.X)
 		lo := c.BusRead(addr)
 		hi := c.BusRead(addr + 1)
-		return uint16(hi)<<8 + uint16(lo)
+		return uint16(hi)<<8 + uint16(lo), 0
 	case ZeroPageIndirectYIndexedValue:
 		value := c.getImmediateValue()
 		lo := c.BusRead(uint16(value))
 		hi := c.BusRead(uint16(value + 1))
+		baseAddr := (uint16(hi) << 8) + uint16(lo)
+		baseAddrPage := baseAddr & 0xFF00
 		addr := (uint16(hi) << 8) + uint16(lo) + uint16(c.Y)
-		return uint16(c.BusRead(addr))
+		if (addr & 0xFF00) != baseAddrPage {
+			return uint16(c.BusRead(addr)), 1
+		}
+		return uint16(c.BusRead(addr)), 0
 	case ZeroPageIndirectYIndexed:
 		value := c.getImmediateValue()
 		lo := c.BusRead(uint16(value))
 		hi := c.BusRead(uint16(value + 1))
+		baseAddr := (uint16(hi) << 8) + uint16(lo)
+		baseAddrPage := baseAddr & 0xFF00
 		addr := (uint16(hi) << 8) + uint16(lo) + uint16(c.Y)
-		return addr
+		if (addr & 0xFF00) != baseAddrPage {
+			return addr, 1
+		}
+		return addr, 0
 	}
 	panic("should never get here")
 }

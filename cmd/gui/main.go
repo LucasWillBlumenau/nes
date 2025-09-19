@@ -24,7 +24,7 @@ const (
 )
 
 func main() {
-	fp, err := os.Open("rom.nes")
+	fp, err := os.Open("roms/rom.nes")
 	if err != nil {
 		log.Fatalln(err)
 	}

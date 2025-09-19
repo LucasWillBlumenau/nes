@@ -23,7 +23,6 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// var window *window.Window
 	window := window.NewWindow(256, 240)
 	ppu := ppu.NewPPU(window, cart.CharacterRom)
 	bus := bus.NewBus(ppu, cart)
@@ -31,23 +30,17 @@ func main() {
 	cpu.SetRomEntrypoint()
 
 	go window.Start()
-	go func() {
-		for {
-			cyclesTaken, err := cpu.Run()
-			if err != nil {
-				log.Fatalln(err)
-			}
-			ppu.ElapseCPUCycles(cyclesTaken)
+	for {
+		cyclesTaken, err := cpu.Run()
+		if err != nil {
+			log.Fatalln(err)
 		}
-	}()
-	// for {
-	// 	cyclesTaken, err := cpu.Run()
-	// 	if err != nil {
-	// 		log.Fatalln(err)
-	// 	}
-	// 	ppu.ElapseCPUCycles(cyclesTaken)
-	// }
-	<-window.CloseChannel
+		image := ppu.ElapseCPUCycles(cyclesTaken)
+		if image != nil {
+			window.UpdateImageBuffer(image)
+		}
+
+	}
 }
 
 func readCliArgs() string {

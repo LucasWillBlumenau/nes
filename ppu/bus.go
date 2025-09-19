@@ -45,8 +45,7 @@ func (b *bus) read(addr uint16) uint8 {
 	return 0
 }
 
-func (b *bus) getAddress(tempAddr uint16) *uint8 {
-	addr := tempAddr
+func (b *bus) getAddress(addr uint16) *uint8 {
 	if addr >= 0x4000 {
 		addr &= 0x3FFF
 	}

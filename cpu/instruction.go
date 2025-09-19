@@ -91,7 +91,7 @@ type Instruction struct {
 	Cycles         uint8
 }
 
-var instructionMap = [256]*Instruction{
+var instructionMap = [256]Instruction{
 	0xA9: {Dispatch: Lda, AddressingMode: Immediate, Cycles: 2},
 	0xAD: {Dispatch: Lda, AddressingMode: AbsoluteValue, Cycles: 4},
 	0xBD: {Dispatch: Lda, AddressingMode: XIndexedAbsoluteValue, Cycles: 4},
