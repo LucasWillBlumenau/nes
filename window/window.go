@@ -73,7 +73,6 @@ func (w *Window) Start() {
 
 		select {
 		case image := <-w.imageBuffer:
-			log.Printf("Buffer size: %d\n", len(image))
 			w.updateImage(image)
 		default:
 		}

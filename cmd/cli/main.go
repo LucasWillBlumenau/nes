@@ -36,23 +36,26 @@ func main() {
 	cpu.SetRomEntrypoint()
 
 	go window.Start()
-	for {
-		cyclesTaken, err := cpu.Run()
-		if err != nil {
-			log.Fatalln(err)
-		}
+	go func() {
+		for {
 
-		for range cyclesTaken {
-			ppu.RunStep()
-		}
+			cyclesTaken, err := cpu.Run()
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-		if ppu.FrameDone() {
-			image := ppu.GetGeneratedImage()
-			_ = image
-			window.UpdateImageBuffer(image)
-		}
+			for range cyclesTaken {
+				ppu.RunStep()
+			}
 
-	}
+			if ppu.FrameDone() {
+				image := ppu.GetGeneratedImage()
+				window.UpdateImageBuffer(image)
+			}
+
+		}
+	}()
+	<-window.CloseChannel
 }
 
 func readCliArgs() string {
