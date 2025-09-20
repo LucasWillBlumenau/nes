@@ -29,13 +29,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	window := window.NewWindow(256, 240)
+	gameWindow := window.NewWindow(256, 240)
 	ppu := ppu.NewPPU(cart.CharacterRom)
 	bus := bus.NewBus(ppu, cart)
 	cpu := cpu.NewCPU(bus)
 	cpu.SetRomEntrypoint()
 
-	go window.Start()
+	go gameWindow.Start()
 	go func() {
 		for {
 			cyclesTaken, err := cpu.Run()
@@ -47,12 +47,12 @@ func main() {
 			}
 			if ppu.FrameDone() {
 				image := ppu.GetGeneratedImage()
-				window.UpdateImageBuffer(image)
+				gameWindow.UpdateImageBuffer(image)
 			}
 
 		}
 	}()
-	<-window.CloseChannel
+	<-gameWindow.CloseChannel
 }
 
 func readCliArgs() string {

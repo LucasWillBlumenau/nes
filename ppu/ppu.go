@@ -44,7 +44,6 @@ const (
 	stateFetchPatternTableLowPlaneSecondCycle
 	stateFetchPatternTableHighPlaneFirstCycle
 	stateFetchPatternTableHighPlaneSecondCycle
-	stateFetchesDone
 )
 
 type ppuRenderingState struct {
@@ -220,7 +219,7 @@ func (p *PPU) fetchNextTile() {
 		attrTableByte := p.bus.read(p.renderingState.currentAddr)
 		attrTableX := (p.registers.coarseX & 0b10) >> 1
 		attrTableY := (p.registers.coarseY & 0b10)
-		p.renderingState.paletteId = (attrTableByte >> uint8(attrTableY|attrTableX)) & 0b11
+		p.renderingState.paletteId = (attrTableByte >> (uint8(attrTableY|attrTableX) * 2)) & 0b11
 		p.renderingState.fetchingState = stateFetchPatternTableLowPlaneFirstCycle
 	case stateFetchPatternTableLowPlaneFirstCycle:
 		bitsAddr := (uint16(p.renderingState.tileIndex)*tileSize + uint16(p.registers.fineY)) | p.ports.control.backgroundPatternTableAddr
