@@ -38,16 +38,13 @@ func main() {
 	go window.Start()
 	go func() {
 		for {
-
 			cyclesTaken, err := cpu.Run()
 			if err != nil {
 				log.Fatalln(err)
 			}
-
 			for range cyclesTaken {
 				ppu.RunStep()
 			}
-
 			if ppu.FrameDone() {
 				image := ppu.GetGeneratedImage()
 				window.UpdateImageBuffer(image)

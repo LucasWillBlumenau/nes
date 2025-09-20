@@ -18,13 +18,14 @@ const irqLowByteAddress = 0xFFFE
 const irqHighByteAddress = 0xFFFF
 
 type CPU struct {
-	A   uint8
-	X   uint8
-	Y   uint8
-	P   uint8
-	Sp  uint8
-	Pc  uint16
-	bus *bus.Bus
+	A           uint8
+	X           uint8
+	Y           uint8
+	P           uint8
+	Sp          uint8
+	Pc          uint16
+	bus         *bus.Bus
+	branchTaken bool
 }
 
 func NewCPU(bus *bus.Bus) *CPU {
@@ -71,6 +72,10 @@ func (c *CPU) Pop() uint8 {
 	return value
 }
 
+func (c *CPU) SetBranchTaken() {
+	c.branchTaken = true
+}
+
 func (c *CPU) Run() (uint8, error) {
 	if interrupt, ok := interrupt.InterruptSignal.Read(); ok {
 		c.attendInterrupt(interrupt)
@@ -89,39 +94,13 @@ func (c *CPU) executeInstruction() (uint8, error) {
 
 	c.Pc++
 
-	// currentPc := c.Pc
-
 	value, extraCycles := c.fetchNextValue(instruction.AddressingMode)
-
-	// diff := c.Pc - currentPc
-	// var op1, op2 string
-	// switch diff {
-	// case 0:
-	// 	op1 = "nil"
-	// 	op2 = "nil"
-	// case 1:
-	// 	op1 = fmt.Sprintf("%02X", c.bus.Read(currentPc))
-	// 	op2 = "nil"
-	// default:
-	// 	op1 = fmt.Sprintf("%02X", c.bus.Read(currentPc))
-	// 	op2 = fmt.Sprintf("%02X", c.bus.Read(currentPc+1))
-	// }
-
-	// fmt.Printf(
-	// 	"CPU State: { A: %02X, X: %02X, Y: %02X, P: %08b, SP: %02x, PC: %04X }, AddressingMode = %s, Value = %04X, Op 1 = %s, Op 2 = %s\n",
-	// 	c.A,
-	// 	c.X,
-	// 	c.Y,
-	// 	c.P,
-	// 	c.Sp,
-	// 	c.Pc,
-	// 	instruction.AddressingMode.String(),
-	// 	value,
-	// 	op1,
-	// 	op2,
-	// )
-
 	instruction.Dispatch(c, value)
+	if c.branchTaken {
+		extraCycles++
+		c.branchTaken = false
+	}
+
 	return instruction.Cycles + extraCycles, nil
 }
 
