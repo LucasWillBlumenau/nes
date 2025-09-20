@@ -89,46 +89,43 @@ func (c *CPU) executeInstruction() (uint8, error) {
 
 	c.Pc++
 
-	currentPc := c.Pc
+	// currentPc := c.Pc
 
 	value, extraCycles := c.fetchNextValue(instruction.AddressingMode)
 
-	diff := c.Pc - currentPc
-	var op1, op2 string
-	switch diff {
-	case 0:
-		op1 = "nil"
-		op2 = "nil"
-	case 1:
-		op1 = fmt.Sprintf("%02X", c.bus.Read(currentPc))
-		op2 = "nil"
-	default:
-		op1 = fmt.Sprintf("%02X", c.bus.Read(currentPc))
-		op2 = fmt.Sprintf("%02X", c.bus.Read(currentPc+1))
-	}
+	// diff := c.Pc - currentPc
+	// var op1, op2 string
+	// switch diff {
+	// case 0:
+	// 	op1 = "nil"
+	// 	op2 = "nil"
+	// case 1:
+	// 	op1 = fmt.Sprintf("%02X", c.bus.Read(currentPc))
+	// 	op2 = "nil"
+	// default:
+	// 	op1 = fmt.Sprintf("%02X", c.bus.Read(currentPc))
+	// 	op2 = fmt.Sprintf("%02X", c.bus.Read(currentPc+1))
+	// }
 
-	fmt.Printf(
-		"CPU State: { A: %02X, X: %02X, Y: %02X, P: %08b, SP: %02x, PC: %04X }, AddressingMode = %s, Value = %04X, Op 1 = %s, Op 2 = %s\n",
-		c.A,
-		c.X,
-		c.Y,
-		c.P,
-		c.Sp,
-		c.Pc,
-		instruction.AddressingMode.String(),
-		value,
-		op1,
-		op2,
-	)
+	// fmt.Printf(
+	// 	"CPU State: { A: %02X, X: %02X, Y: %02X, P: %08b, SP: %02x, PC: %04X }, AddressingMode = %s, Value = %04X, Op 1 = %s, Op 2 = %s\n",
+	// 	c.A,
+	// 	c.X,
+	// 	c.Y,
+	// 	c.P,
+	// 	c.Sp,
+	// 	c.Pc,
+	// 	instruction.AddressingMode.String(),
+	// 	value,
+	// 	op1,
+	// 	op2,
+	// )
 
 	instruction.Dispatch(c, value)
 	return instruction.Cycles + extraCycles, nil
 }
 
 func (c *CPU) attendInterrupt(interruptValue interrupt.Interrupt) {
-
-	fmt.Printf("Attenting interrupt %s\n", interruptValue.String())
-
 	hi := uint8(c.Pc >> 8)
 	lo := uint8(c.Pc & 0x00FF)
 

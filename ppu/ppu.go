@@ -4,120 +4,91 @@ import (
 	"image/color"
 
 	"github.com/LucasWillBlumenau/nes/interrupt"
-	"github.com/LucasWillBlumenau/nes/window"
 )
 
-var a = 5
-
-const kb = 1024
-const enableStatusVBlank uint8 = 0b10000000
-const disableStatusVBlank uint8 = 0b01111111
-const visibleScalines = 240
-const totalScanlines = 261
-const dotsPerScanline = 341
-
 const (
-	controlBaseNameTableAddr          = 0b00000011
-	controlIncrementSize              = 0b00000100 // 0 = 1, 1 = 32
-	controlSpritePatternTableAddr     = 0b00001000
-	controlBackgroundPatternTableAddr = 0b00010000 // 0 = 0x0000, 1 = 0x1000
-	controlSpriteSize                 = 0b00100000 // 0 = 8x8, 1 = 8x16
-	controlMasterSlaveSelect          = 0b01000000
-	controlPortNmiEnabled             = 0b10000000
+	tileSize           uint16 = 16
+	highBitPlaneOffset uint16 = 8
+
+	enableStatusVBlank        uint8 = 0b10000000
+	disableStatusVBlank       uint8 = 0b01111111
+	disableSprite0HitFlag     uint8 = 0b10111111
+	disableSpriteOverflowFlag uint8 = 0b11011111
 )
 
 type ppuPorts struct {
-	Control uint8
-	Mask    uint8
-	Status  uint8
+	control ppuControl
+	mask    uint8
+	status  uint8
+}
+
+type ppuRegisters struct {
+	coarseY      uint16
+	coarseX      uint16
+	fineX        uint16
+	fineY        uint16
+	currentAddr  uint16
+	bufferedData uint8
+	writeLatch   bool
+	pixelBuffer  pixelsShiftRegister
+}
+
+type pixelFetchingState uint8
+
+const (
+	stateFetchNametableFirstCycle pixelFetchingState = iota
+	stateFetchNametableSecondCycle
+	stateFetchAttrtableFirstCycle
+	stateFetchAttrtableSecondCycle
+	stateFetchPatternTableLowPlaneFirstCycle
+	stateFetchPatternTableLowPlaneSecondCycle
+	stateFetchPatternTableHighPlaneFirstCycle
+	stateFetchPatternTableHighPlaneSecondCycle
+	stateFetchesDone
+)
+
+type ppuRenderingState struct {
+	scanline      uint16
+	clock         uint16
+	fetchingState pixelFetchingState
+	tileIndex     uint8
+	lowBitPlane   uint8
+	highBitPlane  uint8
+	paletteId     uint8
+	currentAddr   uint16
 }
 
 type PPU struct {
-	window *window.Window
-	bus    *bus
-
-	// tiles         []Tile
-	bufferedImage []color.RGBA
-
-	ppuPorts       ppuPorts
-	writeLatch     bool
-	oddFrame       bool
-	currentAddress uint16
-	bufferedData   uint8
-
-	coarseX uint8
-	coarseY uint8
-	fineX   uint8
-	fineY   uint8
-
-	currentScanline      uint16
-	currentDot           uint16
-	scanlineImageBuilder scanlineImageBuilder
+	bus            *bus
+	bufferedImage  [256 * 240]color.RGBA
+	currentPixel   uint32
+	frameDone      bool
+	ports          ppuPorts
+	renderingState ppuRenderingState
+	registers      ppuRegisters
 }
 
-func NewPPU(window *window.Window, chrRom []uint8) *PPU {
+func NewPPU(chrRom []uint8) *PPU {
 	bus := newBus(chrRom)
-	scanlineImageBuilder := newScanlineImageBuilder(bus)
 	return &PPU{
-		oddFrame:             false,
-		writeLatch:           false,
-		bus:                  bus,
-		scanlineImageBuilder: *scanlineImageBuilder,
-		window:               window,
+		bus: bus,
+		registers: ppuRegisters{
+			writeLatch:   false,
+			currentAddr:  0x0000,
+			bufferedData: 0x00,
+		},
+		renderingState: ppuRenderingState{
+			scanline:      261,
+			clock:         0,
+			fetchingState: stateFetchNametableFirstCycle,
+		},
 	}
-}
-
-func (p *PPU) ElapseCPUCycles(cpuCycles uint8) []color.RGBA {
-	remaingPPUCycles := cpuCycles * 3
-	var image []color.RGBA
-	for remaingPPUCycles > 0 {
-		if p.currentScanline == 0 && p.currentDot == 0 {
-			p.ppuPorts.Status &= disableStatusVBlank
-			var basePatternTable uint16 = 0x0000
-			if (p.ppuPorts.Control | controlBackgroundPatternTableAddr) > 0 {
-				basePatternTable = 0x1000
-			}
-			p.scanlineImageBuilder.SetNewFrameState(p.coarseY, p.fineY, basePatternTable)
-			image = p.bufferedImage
-			p.bufferedImage = nil
-
-		} else if p.currentScanline == 240 && p.currentDot == 0 {
-			p.vBlank()
-		}
-
-		generatedPixels := p.scanlineImageBuilder.RunStep(p.currentDot)
-		if p.currentDot == 340 {
-			if p.currentScanline == 260 {
-				p.currentScanline = 0
-			} else {
-				p.currentScanline++
-				p.scanlineImageBuilder.SetNewScanlineState(p.currentScanline, p.fineX)
-			}
-			p.currentDot = 0
-		} else {
-			p.currentDot++
-		}
-
-		if generatedPixels != nil {
-			p.bufferedImage = append(p.bufferedImage, generatedPixels...)
-		}
-
-		remaingPPUCycles--
-	}
-	return image
-}
-
-func (p *PPU) vBlank() {
-	if (p.ppuPorts.Control & controlPortNmiEnabled) > 0 {
-		interrupt.InterruptSignal.Send(interrupt.NonMaskableInterrupt)
-	}
-	p.ppuPorts.Status |= enableStatusVBlank
 }
 
 func (p *PPU) ReadStatusPort() uint8 {
-	currentStatus := p.ppuPorts.Status
-	p.ppuPorts.Status &= enableStatusVBlank ^ 0xFF
-	p.writeLatch = false
+	currentStatus := p.ports.status
+	p.ports.status &= enableStatusVBlank ^ 0xFF
+	p.registers.writeLatch = false
 
 	return currentStatus
 }
@@ -127,17 +98,17 @@ func (p *PPU) ReadOAMDataPort() uint8 {
 }
 
 func (p *PPU) ReadVRamDataPort() uint8 {
-	data := p.bufferedData
-	p.bufferedData = p.bus.read(p.currentAddress)
+	data := p.registers.bufferedData
+	p.registers.bufferedData = p.bus.read(p.registers.currentAddr)
 	return data
 }
 
 func (p *PPU) WritePPUControlPort(value uint8) {
-	p.ppuPorts.Control = value
+	p.ports.control = newPPUControl(value)
 }
 
 func (p *PPU) WritePPUMaskPort(value uint8) {
-	p.ppuPorts.Mask = value
+	p.ports.mask = value
 }
 
 func (p *PPU) WriteOAMAddrPort(value uint8) {
@@ -149,91 +120,156 @@ func (p *PPU) WriteOAMDataPort(value uint8) {
 }
 
 func (p *PPU) WritePPUScrollPort(value uint8) {
-	if p.writeLatch {
-		p.coarseY = (value & 0b11111000) >> 3
-		p.fineY = (value & 0b00000111)
+	if p.registers.writeLatch {
+		p.registers.coarseY = uint16(value&0b11111000) >> 3
+		p.registers.fineY = uint16(value & 0b00000111)
+		p.registers.writeLatch = false
 	} else {
-		p.coarseX = (value & 0b11111000) >> 3
-		p.fineX = (value & 0b00000111)
+		p.registers.coarseX = uint16(value&0b11111000) >> 3
+		p.registers.fineX = uint16(value & 0b00000111)
+		p.registers.writeLatch = true
 	}
-	p.writeLatch = !p.writeLatch
 }
 
 func (p *PPU) WritePPUAddrPort(value uint8) {
-	if p.writeLatch {
-		p.currentAddress = (p.currentAddress & 0xFF00) | (uint16(value))
+	if p.registers.writeLatch {
+		p.registers.currentAddr = (p.registers.currentAddr & 0xFF00) | (uint16(value))
+		p.registers.writeLatch = false
 	} else {
-		p.currentAddress = uint16(value) << 8
+		p.registers.currentAddr = uint16(value) << 8
+		p.registers.writeLatch = true
 	}
-	p.writeLatch = !p.writeLatch
 }
 
 func (p *PPU) WritePPUDataPort(value uint8) {
-	var incrementSize uint16
-	if (p.ppuPorts.Control & controlIncrementSize) > 0 {
-		incrementSize = 32
+	p.bus.write(p.registers.currentAddr, value)
+	p.registers.currentAddr += p.ports.control.incrementSize
+}
+
+func (p *PPU) RunStep() {
+	defer p.incrementCycle()
+
+	preRenderScanline := p.renderingState.scanline == 261
+
+	if preRenderScanline {
+		if p.renderingState.clock == 1 {
+			p.ports.status &= disableStatusVBlank
+			p.ports.status &= disableSprite0HitFlag
+			p.ports.status &= disableSpriteOverflowFlag
+			p.frameDone = false
+			p.currentPixel = 0
+			p.registers.coarseY = 0
+			p.registers.coarseX = 0
+		} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
+			p.fetchNextTile()
+		}
+	} else if p.renderingState.scanline < 240 {
+		if p.renderingState.clock >= 1 && p.renderingState.clock < 257 {
+			nextPixel := p.registers.pixelBuffer.Unbuffer()
+			p.appendPixel(nextPixel)
+			p.fetchNextTile()
+		} else if p.renderingState.clock == 257 {
+			if p.registers.fineY == 7 {
+				p.registers.fineY = 0
+				p.registers.coarseY++
+			} else {
+				p.registers.fineY++
+			}
+			p.registers.coarseX = 0
+			p.registers.fineX = 0
+		} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
+			p.fetchNextTile()
+		}
+	} else if p.renderingState.scanline == 240 && p.renderingState.clock == 0 {
+		p.vBlank()
+		p.frameDone = true
+	} else if p.renderingState.scanline == 241 && p.renderingState.clock == 1 {
+		p.ports.status |= enableStatusVBlank
+	}
+
+}
+
+func (p *PPU) incrementCycle() {
+	p.renderingState.clock++
+	if p.renderingState.clock < 341 {
+		return
+	}
+
+	p.renderingState.clock = 0
+	if p.renderingState.scanline == 261 {
+		p.renderingState.scanline = 0
 	} else {
-		incrementSize = 1
+		p.renderingState.scanline++
 	}
-
-	p.bus.write(p.currentAddress, value)
-	p.currentAddress += incrementSize
 }
 
-func (p *PPU) GererateFrame() []color.RGBA {
-	image := make([]color.RGBA, p.window.Width()*p.window.Height())
-	nameTable := p.bus.ram[0:960]
-	attrTable := p.bus.ram[960:1024]
-	tiles := generateTilesFromChrRom(p.bus.backgroundPalette)
-
-	for i, tileIdx := range nameTable {
-		tile := tiles[tileIdx]
-		tileX := (i % 32) * 8
-		tileY := (i / 32) * 8
-		attrTableX := tileX / 32
-		attrTableY := tileY / 32
-		attrTableByte := attrTable[attrTableX+attrTableY*8]
-		attrTableByteX := attrTableX % 2
-		attrTableByteY := attrTableY % 2
-		paletteId := (attrTableByte >> uint8(attrTableByteY<<1|attrTableByteX)) & 0b11
-		for y := range 8 {
-			for x := range 8 {
-				index := tile[y][x]
-				color := p.bus.read(uint16(0x3F00) + uint16(paletteId)*4 + uint16(index))
-				image[(tileX+x)+(tileY+y)*p.window.Width()] = nesPalette[color]
-			}
-		}
+func (p *PPU) fetchNextTile() {
+	switch p.renderingState.fetchingState {
+	case stateFetchNametableFirstCycle:
+		p.renderingState.currentAddr = p.ports.control.nametableOffset | (p.registers.coarseY << 5) | p.registers.coarseX
+		p.renderingState.fetchingState = stateFetchNametableSecondCycle
+	case stateFetchNametableSecondCycle:
+		p.renderingState.tileIndex = p.bus.read(p.renderingState.currentAddr)
+		p.renderingState.fetchingState = stateFetchAttrtableFirstCycle
+	case stateFetchAttrtableFirstCycle:
+		attrTableX := (p.registers.coarseX & 0b11100) >> 2
+		attrTableY := (p.registers.coarseY & 0b11100) >> 2
+		p.renderingState.currentAddr = p.ports.control.nametableOffset + 0x3C0 + attrTableX + attrTableY*8
+		p.renderingState.fetchingState = stateFetchAttrtableSecondCycle
+	case stateFetchAttrtableSecondCycle:
+		attrTableByte := p.bus.read(p.renderingState.currentAddr)
+		attrTableX := (p.registers.coarseX & 0b10) >> 1
+		attrTableY := (p.registers.coarseY & 0b10)
+		p.renderingState.paletteId = (attrTableByte >> uint8(attrTableY|attrTableX)) & 0b11
+		p.renderingState.fetchingState = stateFetchPatternTableLowPlaneFirstCycle
+	case stateFetchPatternTableLowPlaneFirstCycle:
+		bitsAddr := (uint16(p.renderingState.tileIndex)*tileSize + uint16(p.registers.fineY)) | p.ports.control.backgroundPatternTableAddr
+		p.renderingState.currentAddr = bitsAddr
+		p.renderingState.fetchingState = stateFetchPatternTableLowPlaneSecondCycle
+	case stateFetchPatternTableLowPlaneSecondCycle:
+		p.renderingState.lowBitPlane = p.bus.read(p.renderingState.currentAddr)
+		p.renderingState.fetchingState = stateFetchPatternTableHighPlaneFirstCycle
+	case stateFetchPatternTableHighPlaneFirstCycle:
+		bitsAddr := (uint16(p.renderingState.tileIndex)*tileSize + uint16(p.registers.fineY) + highBitPlaneOffset) | p.ports.control.backgroundPatternTableAddr
+		p.renderingState.currentAddr = bitsAddr
+		p.renderingState.fetchingState = stateFetchPatternTableHighPlaneSecondCycle
+	case stateFetchPatternTableHighPlaneSecondCycle:
+		p.renderingState.highBitPlane = p.bus.read(p.renderingState.currentAddr)
+		p.updateShiftRegisterWithFetchedData()
+		p.registers.coarseX++
+		p.renderingState.fetchingState = stateFetchNametableFirstCycle
 	}
-	return image
 }
 
-type Tile [8][8]uint8
-
-func generateTilesFromChrRom(rom []uint8) []Tile {
-
-	var tiles []Tile
-	offset := 0
-	length := 8
-	for offset < len(rom) {
-		leastSignificantBits := rom[offset : offset+length]
-		offset += length
-		mostSignificantBits := rom[offset : offset+length]
-		offset += length
-
-		var tile Tile
-		for i := range length {
-			loBits := leastSignificantBits[i]
-			hiBits := mostSignificantBits[i]
-
-			for j := range 8 {
-				shiftSize := 7 - uint8(j)
-				lo := (loBits >> shiftSize) & 0b00000001
-				hi := (hiBits >> shiftSize) & 0b00000001
-				tile[i][j] = (hi << 1) + lo
-			}
-		}
-		tiles = append(tiles, tile)
+func (p *PPU) vBlank() {
+	if p.ports.control.nmiEnabled {
+		interrupt.InterruptSignal.Send(interrupt.NonMaskableInterrupt)
 	}
+}
 
-	return tiles
+func (p *PPU) updateShiftRegisterWithFetchedData() {
+	for i := range 8 {
+		shift := 7 - i
+		hi := (p.renderingState.highBitPlane >> shift) & 0b01
+		lo := (p.renderingState.lowBitPlane >> shift) & 0b01
+		colorIdx := (hi << 1) | lo
+		addr := 0x3F00 + uint16(p.renderingState.paletteId*4+colorIdx)
+
+		color := nesPalette[p.bus.read(addr)]
+		p.registers.pixelBuffer.Buffer(color)
+	}
+}
+
+func (p *PPU) appendPixel(color color.RGBA) {
+	p.bufferedImage[p.currentPixel] = color
+	p.currentPixel++
+}
+
+func (p *PPU) FrameDone() bool {
+	return p.frameDone
+}
+
+func (p *PPU) GetGeneratedImage() []color.RGBA {
+	p.frameDone = false
+	return p.bufferedImage[:]
 }

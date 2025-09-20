@@ -73,6 +73,7 @@ func (w *Window) Start() {
 
 		select {
 		case image := <-w.imageBuffer:
+			log.Printf("Buffer size: %d\n", len(image))
 			w.updateImage(image)
 		default:
 		}
@@ -83,45 +84,14 @@ func (w *Window) Start() {
 
 func (w *Window) updateImage(colors []color.RGBA) {
 	pixels := make([]byte, w.height*w.width*4)
-
-	// Define the border color (you can change this to whatever color you want)
-	borderColor := color.RGBA{R: 255, G: 0, B: 0, A: 255} // Red border
-
-	// Loop through each 8x8 tile
-	for tileY := 0; tileY < w.height/8; tileY++ {
-		for tileX := 0; tileX < w.width/8; tileX++ {
-			// Calculate the starting pixel for the current tile
-			tileStartX := tileX * 8
-			tileStartY := tileY * 8
-
-			// Loop through each pixel in the current 8x8 tile
-			for y := 0; y < 8; y++ {
-				for x := 0; x < 8; x++ {
-					// Calculate the index of the pixel in the flat array
-					index := (tileStartY+y)*w.width + (tileStartX + x)
-					pixelIndex := index * 4
-
-					// Check if this pixel is on the border (top, bottom, left, or right edge of the tile)
-					if y == 0 || y == 7 || x == 0 || x == 7 {
-						// Set border color
-						pixels[pixelIndex] = borderColor.B
-						pixels[pixelIndex+1] = borderColor.G
-						pixels[pixelIndex+2] = borderColor.R
-						pixels[pixelIndex+3] = borderColor.A
-					} else {
-						// Set the color from the original colors array
-						color := colors[index]
-						pixels[pixelIndex] = color.B
-						pixels[pixelIndex+1] = color.G
-						pixels[pixelIndex+2] = color.R
-						pixels[pixelIndex+3] = color.A
-					}
-				}
-			}
-		}
+	for i, color := range colors {
+		offset := i * 4
+		pixels[offset] = color.B
+		pixels[offset+1] = color.G
+		pixels[offset+2] = color.R
+		pixels[offset+3] = color.A
 	}
 
-	// Update the texture with the pixel data
 	w.texture.Update(nil, unsafe.Pointer(&pixels[0]), int(w.width)*4)
 	w.renderer.Clear()
 	w.renderer.Copy(w.texture, nil, nil)

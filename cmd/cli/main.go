@@ -12,6 +12,12 @@ import (
 )
 
 func main() {
+	f, err := os.Create("output.log")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.SetOutput(f)
+
 	path := readCliArgs()
 	fp, err := os.Open(path)
 	if err != nil {
@@ -24,7 +30,7 @@ func main() {
 	}
 
 	window := window.NewWindow(256, 240)
-	ppu := ppu.NewPPU(window, cart.CharacterRom)
+	ppu := ppu.NewPPU(cart.CharacterRom)
 	bus := bus.NewBus(ppu, cart)
 	cpu := cpu.NewCPU(bus)
 	cpu.SetRomEntrypoint()
@@ -35,8 +41,14 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		image := ppu.ElapseCPUCycles(cyclesTaken)
-		if image != nil {
+
+		for range cyclesTaken {
+			ppu.RunStep()
+		}
+
+		if ppu.FrameDone() {
+			image := ppu.GetGeneratedImage()
+			_ = image
 			window.UpdateImageBuffer(image)
 		}
 

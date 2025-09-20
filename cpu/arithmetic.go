@@ -1,11 +1,7 @@
 package cpu
 
-import (
-	"fmt"
-)
-
 func Adc(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction ADC...")
+	// fmt.Println("Executing instruction ADC...")
 
 	var carryBit uint16
 	if cpu.GetStatusFlag(StatusFlagCarry) {
@@ -27,7 +23,7 @@ func Adc(cpu *CPU, fetchedValue uint16) {
 }
 
 func Cmp(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction CMP...")
+	// fmt.Println("Executing instruction CMP...")
 
 	fv := uint8(fetchedValue)
 	diff := cpu.A - fv
@@ -38,7 +34,7 @@ func Cmp(cpu *CPU, fetchedValue uint16) {
 }
 
 func Cpx(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction CPX...")
+	// fmt.Println("Executing instruction CPX...")
 
 	fv := uint8(fetchedValue)
 	diff := cpu.X - fv
@@ -49,7 +45,7 @@ func Cpx(cpu *CPU, fetchedValue uint16) {
 }
 
 func Cpy(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction CPY...")
+	// fmt.Println("Executing instruction CPY...")
 
 	fv := uint8(fetchedValue)
 	diff := cpu.Y - fv
@@ -60,7 +56,7 @@ func Cpy(cpu *CPU, fetchedValue uint16) {
 }
 
 func Sbc(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction SBC...")
+	// fmt.Println("Executing instruction SBC...")
 
 	var carryBit uint16
 	if cpu.GetStatusFlag(StatusFlagCarry) {

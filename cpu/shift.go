@@ -1,11 +1,7 @@
 package cpu
 
-import (
-	"fmt"
-)
-
 func Asl(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction ASL...")
+	// fmt.Println("Executing instruction ASL...")
 
 	value := cpu.BusRead(fetchedValue)
 	result := value << 1
@@ -18,7 +14,7 @@ func Asl(cpu *CPU, fetchedValue uint16) {
 }
 
 func AslAccumulator(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction ASL...")
+	// fmt.Println("Executing instruction ASL...")
 	value := cpu.A
 	result := value << 1
 	cpu.A = result
@@ -28,7 +24,7 @@ func AslAccumulator(cpu *CPU, fetchedValue uint16) {
 }
 
 func Lsr(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction LSR...")
+	// fmt.Println("Executing instruction LSR...")
 	value := cpu.BusRead(fetchedValue)
 	result := value >> 1
 	cpu.BusWrite(fetchedValue, result)
@@ -37,7 +33,7 @@ func Lsr(cpu *CPU, fetchedValue uint16) {
 }
 
 func LsrAccumulator(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction LSR...")
+	// fmt.Println("Executing instruction LSR...")
 	value := cpu.A
 	result := value >> 1
 	cpu.A = result
@@ -46,7 +42,7 @@ func LsrAccumulator(cpu *CPU, fetchedValue uint16) {
 }
 
 func Rol(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction ROL...")
+	// fmt.Println("Executing instruction ROL...")
 	var carryBit uint8
 	if cpu.GetStatusFlag(StatusFlagCarry) {
 		carryBit = 1
@@ -64,7 +60,7 @@ func Rol(cpu *CPU, fetchedValue uint16) {
 }
 
 func RolAccumulator(cpu *CPU, _ uint16) {
-	fmt.Println("Executing instruction ROL...")
+	// fmt.Println("Executing instruction ROL...")
 	var carryBit uint8
 	if cpu.GetStatusFlag(StatusFlagCarry) {
 		carryBit = 1
@@ -82,7 +78,7 @@ func RolAccumulator(cpu *CPU, _ uint16) {
 }
 
 func Ror(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction ROR...")
+	// fmt.Println("Executing instruction ROR...")
 	var carryBit uint8
 	if cpu.GetStatusFlag(StatusFlagCarry) {
 		carryBit = 0x80
@@ -100,7 +96,7 @@ func Ror(cpu *CPU, fetchedValue uint16) {
 }
 
 func RorAccumulator(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction ROR...")
+	// fmt.Println("Executing instruction ROR...")
 	var carryBit uint8
 	if cpu.GetStatusFlag(StatusFlagCarry) {
 		carryBit = 0x80

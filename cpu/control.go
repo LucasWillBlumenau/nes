@@ -1,12 +1,8 @@
 package cpu
 
-import (
-	"fmt"
-)
-
 // TODO: abstract Brk interrupt functionally in cpu.attendInterrupt function
 func Brk(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction BRK...")
+	// fmt.Println("Executing instruction BRK...")
 
 	programCounter := cpu.Pc + 1
 
@@ -26,12 +22,12 @@ func Brk(cpu *CPU, fetchedValue uint16) {
 }
 
 func Jmp(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction JMP...")
+	// fmt.Println("Executing instruction JMP...")
 	cpu.Pc = fetchedValue
 }
 
 func Jsr(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction JSR...")
+	// fmt.Println("Executing instruction JSR...")
 
 	programCounter := cpu.Pc - 1
 
@@ -45,7 +41,7 @@ func Jsr(cpu *CPU, fetchedValue uint16) {
 }
 
 func Rti(cpu *CPU, _ uint16) {
-	fmt.Println("Executing instruction RTI...")
+	// fmt.Println("Executing instruction RTI...")
 
 	cpu.P = cpu.Pop()
 
@@ -56,7 +52,7 @@ func Rti(cpu *CPU, _ uint16) {
 }
 
 func Rts(cpu *CPU, _ uint16) {
-	fmt.Println("Executing instruction RTS...")
+	// fmt.Println("Executing instruction RTS...")
 
 	lo := cpu.Pop()
 	hi := cpu.Pop()

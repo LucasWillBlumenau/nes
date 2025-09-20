@@ -17,7 +17,7 @@ type bus struct {
 }
 
 func newBus(rom []uint8) *bus {
-	ram := make([]uint8, 2*kb)
+	ram := make([]uint8, 2*1024)
 	backgroundPalete := make([]uint8, 16)
 	foregroundPalete := make([]uint8, 16)
 

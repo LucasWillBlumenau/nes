@@ -1,11 +1,7 @@
 package cpu
 
-import (
-	"fmt"
-)
-
 func Dec(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction DEC...")
+	// fmt.Println("Executing instruction DEC...")
 
 	currentValue := cpu.BusRead(fetchedValue)
 	result := currentValue - 1
@@ -17,7 +13,7 @@ func Dec(cpu *CPU, fetchedValue uint16) {
 }
 
 func Dex(cpu *CPU, _ uint16) {
-	fmt.Println("Executing instruction DEX...")
+	// fmt.Println("Executing instruction DEX...")
 
 	cpu.X--
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.X>>7) == 1)
@@ -25,7 +21,7 @@ func Dex(cpu *CPU, _ uint16) {
 }
 
 func Dey(cpu *CPU, _ uint16) {
-	fmt.Println("Executing instruction DEY...")
+	// fmt.Println("Executing instruction DEY...")
 
 	cpu.Y--
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.Y>>7) == 1)
@@ -33,7 +29,7 @@ func Dey(cpu *CPU, _ uint16) {
 }
 
 func Inc(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction INC...")
+	// fmt.Println("Executing instruction INC...")
 
 	currentValue := cpu.BusRead(fetchedValue)
 	result := currentValue + 1
@@ -45,7 +41,7 @@ func Inc(cpu *CPU, fetchedValue uint16) {
 }
 
 func Inx(cpu *CPU, _ uint16) {
-	fmt.Println("Executing instruction INX...")
+	// fmt.Println("Executing instruction INX...")
 
 	cpu.X++
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.X>>7) == 1)
@@ -53,7 +49,7 @@ func Inx(cpu *CPU, _ uint16) {
 }
 
 func Iny(cpu *CPU, _ uint16) {
-	fmt.Println("Executing instruction INY...")
+	// fmt.Println("Executing instruction INY...")
 
 	cpu.Y++
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.Y>>7) == 1)

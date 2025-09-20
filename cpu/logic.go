@@ -1,11 +1,7 @@
 package cpu
 
-import (
-	"fmt"
-)
-
 func And(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction AND...")
+	// fmt.Println("Executing instruction AND...")
 
 	cpu.A &= uint8(fetchedValue)
 	cpu.SetStatusFlag(StatusFlagZero, cpu.A == 0)
@@ -13,7 +9,7 @@ func And(cpu *CPU, fetchedValue uint16) {
 }
 
 func Bit(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction BIT...")
+	// fmt.Println("Executing instruction BIT...")
 
 	value := cpu.A & uint8(fetchedValue)
 
@@ -23,7 +19,7 @@ func Bit(cpu *CPU, fetchedValue uint16) {
 }
 
 func Eor(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction EOR...")
+	// fmt.Println("Executing instruction EOR...")
 
 	cpu.A ^= uint8(fetchedValue)
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.A>>7) == 1)
@@ -31,7 +27,7 @@ func Eor(cpu *CPU, fetchedValue uint16) {
 }
 
 func Ora(cpu *CPU, fetchedValue uint16) {
-	fmt.Println("Executing instruction ORA...")
+	// fmt.Println("Executing instruction ORA...")
 
 	cpu.A |= uint8(fetchedValue)
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.A>>7) == 1)
