@@ -31,6 +31,7 @@ type ppuRegisters struct {
 	bufferedData uint8
 	writeLatch   bool
 	pixelBuffer  pixelsShiftRegister
+	nametable    uint16
 }
 
 type pixelFetchingState uint8
@@ -55,6 +56,10 @@ type ppuRenderingState struct {
 	highBitPlane  uint8
 	paletteId     uint8
 	currentAddr   uint16
+	coarseX       uint16
+	coarseY       uint16
+	fineX         uint16
+	fineY         uint16
 }
 
 type PPU struct {
@@ -104,6 +109,7 @@ func (p *PPU) ReadVRamDataPort() uint8 {
 
 func (p *PPU) WritePPUControlPort(value uint8) {
 	p.ports.control = newPPUControl(value)
+	p.registers.nametable = p.ports.control.nametable
 }
 
 func (p *PPU) WritePPUMaskPort(value uint8) {
@@ -122,22 +128,20 @@ func (p *PPU) WritePPUScrollPort(value uint8) {
 	if p.registers.writeLatch {
 		p.registers.coarseY = uint16(value&0b11111000) >> 3
 		p.registers.fineY = uint16(value & 0b00000111)
-		p.registers.writeLatch = false
 	} else {
 		p.registers.coarseX = uint16(value&0b11111000) >> 3
 		p.registers.fineX = uint16(value & 0b00000111)
-		p.registers.writeLatch = true
 	}
+	p.registers.writeLatch = !p.registers.writeLatch
 }
 
 func (p *PPU) WritePPUAddrPort(value uint8) {
 	if p.registers.writeLatch {
 		p.registers.currentAddr = (p.registers.currentAddr & 0xFF00) | (uint16(value))
-		p.registers.writeLatch = false
 	} else {
 		p.registers.currentAddr = uint16(value) << 8
-		p.registers.writeLatch = true
 	}
+	p.registers.writeLatch = !p.registers.writeLatch
 }
 
 func (p *PPU) WritePPUDataPort(value uint8) {
@@ -157,10 +161,16 @@ func (p *PPU) RunStep() {
 			p.ports.status &= disableSpriteOverflowFlag
 			p.frameDone = false
 			p.currentPixel = 0
-			p.registers.coarseY = 0
-			p.registers.coarseX = 0
+			p.renderingState.coarseY = p.registers.coarseY
+			p.renderingState.coarseX = p.registers.coarseX
+			p.renderingState.fineY = p.registers.fineY
+			p.renderingState.fineX = p.registers.fineX
 		} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
 			p.fetchNextTile()
+		} else if p.renderingState.clock == 337 {
+			for range p.renderingState.fineX {
+				p.registers.pixelBuffer.Unbuffer()
+			}
 		}
 	} else if p.renderingState.scanline < 240 {
 		if p.renderingState.clock >= 1 && p.renderingState.clock < 257 {
@@ -170,12 +180,18 @@ func (p *PPU) RunStep() {
 		} else if p.renderingState.clock == 257 {
 			if p.registers.fineY == 7 {
 				p.registers.fineY = 0
-				p.registers.coarseY++
+				if p.renderingState.coarseY == 31 {
+					p.renderingState.coarseY = 0
+					p.registers.nametable ^= 0b10
+				} else {
+					p.renderingState.coarseY++
+				}
+
 			} else {
 				p.registers.fineY++
 			}
-			p.registers.coarseX = 0
-			p.registers.fineX = 0
+			p.renderingState.coarseX = p.registers.coarseX
+			p.renderingState.fineX = p.registers.fineX
 		} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
 			p.fetchNextTile()
 		}
@@ -205,20 +221,20 @@ func (p *PPU) incrementCycle() {
 func (p *PPU) fetchNextTile() {
 	switch p.renderingState.fetchingState {
 	case stateFetchNametableFirstCycle:
-		p.renderingState.currentAddr = p.ports.control.nametableOffset | (p.registers.coarseY << 5) | p.registers.coarseX
+		p.renderingState.currentAddr = (0b1000|p.registers.nametable)<<10 | (p.renderingState.coarseY << 5) | p.renderingState.coarseX
 		p.renderingState.fetchingState = stateFetchNametableSecondCycle
 	case stateFetchNametableSecondCycle:
 		p.renderingState.tileIndex = p.bus.read(p.renderingState.currentAddr)
 		p.renderingState.fetchingState = stateFetchAttrtableFirstCycle
 	case stateFetchAttrtableFirstCycle:
-		attrTableX := (p.registers.coarseX & 0b11100) >> 2
-		attrTableY := (p.registers.coarseY & 0b11100) >> 2
-		p.renderingState.currentAddr = p.ports.control.nametableOffset + 0x3C0 + attrTableX + attrTableY*8
+		attrTableX := (p.renderingState.coarseX & 0b11100) >> 2
+		attrTableY := (p.renderingState.coarseY & 0b11100) >> 2
+		p.renderingState.currentAddr = (0b1000|p.registers.nametable)<<10 + 0x3C0 + attrTableX + attrTableY*8
 		p.renderingState.fetchingState = stateFetchAttrtableSecondCycle
 	case stateFetchAttrtableSecondCycle:
 		attrTableByte := p.bus.read(p.renderingState.currentAddr)
-		attrTableX := (p.registers.coarseX & 0b10) >> 1
-		attrTableY := (p.registers.coarseY & 0b10)
+		attrTableX := (p.renderingState.coarseX & 0b10) >> 1
+		attrTableY := (p.renderingState.coarseY & 0b10)
 		p.renderingState.paletteId = (attrTableByte >> (uint8(attrTableY|attrTableX) * 2)) & 0b11
 		p.renderingState.fetchingState = stateFetchPatternTableLowPlaneFirstCycle
 	case stateFetchPatternTableLowPlaneFirstCycle:
@@ -235,7 +251,12 @@ func (p *PPU) fetchNextTile() {
 	case stateFetchPatternTableHighPlaneSecondCycle:
 		p.renderingState.highBitPlane = p.bus.read(p.renderingState.currentAddr)
 		p.updateShiftRegisterWithFetchedData()
-		p.registers.coarseX++
+		if p.renderingState.coarseX == 31 {
+			p.renderingState.coarseX = 0
+			p.registers.nametable ^= 0b01
+		} else {
+			p.renderingState.coarseX++
+		}
 		p.renderingState.fetchingState = stateFetchNametableFirstCycle
 	}
 }

@@ -11,8 +11,8 @@ const (
 )
 
 type ppuControl struct {
+	value                      uint8
 	nametable                  uint16
-	nametableOffset            uint16
 	incrementSize              uint16
 	spritePatternTableAddr     uint16
 	backgroundPatternTableAddr uint16
@@ -39,8 +39,8 @@ func newPPUControl(value uint8) ppuControl {
 	masterSlave := (value & controlMasterSlaveSelect) > 0
 	nmiEnabled := (value & controlPortNmiEnabled) > 0
 	return ppuControl{
+		value:                      value,
 		nametable:                  nametable,
-		nametableOffset:            (0b1000 | nametable) << 10,
 		incrementSize:              incrementSize,
 		spritePatternTableAddr:     spritePatternTableAddr,
 		backgroundPatternTableAddr: backgroundPatternTableAddr,
