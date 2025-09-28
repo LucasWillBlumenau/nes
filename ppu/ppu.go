@@ -52,14 +52,14 @@ const (
 type oamEvaluationState uint8
 
 const (
-	evaluteOAMYPositionByteFirstCycle oamEvaluationState = iota
-	evaluteOAMYPositionByteSecondCycle
-	evaluteOAMTileIndexFirstCycle
-	evaluteOAMTileIndexSecondCycle
-	evaluteOAMAttrByteFirstCycle
-	evaluteOAMAttrByteSecondCycle
-	evaluteOAMXPositionFirstCycle
-	evaluteOAMXPositionSecondCycle
+	evaluateOAMYPositionByteFirstCycle oamEvaluationState = iota
+	evaluateOAMYPositionByteSecondCycle
+	evaluateOAMTileIndexFirstCycle
+	evaluateOAMTileIndexSecondCycle
+	evaluateOAMAttrByteFirstCycle
+	evaluateOAMAttrByteSecondCycle
+	evaluateOAMXPositionFirstCycle
+	evaluateOAMXPositionSecondCycle
 )
 
 type oamFetchingState uint8
@@ -224,7 +224,7 @@ func (p *PPU) RunStep() {
 			p.renderingState.oamSpriteByte = 0
 			p.secondaryOAMIndex = 0
 			p.renderingState.currentSpriteBeingFetched = 0
-			p.renderingState.oamEvaluationState = evaluteOAMYPositionByteFirstCycle
+			p.renderingState.oamEvaluationState = evaluateOAMYPositionByteFirstCycle
 		} else if p.renderingState.clock < 257 {
 			nextPixel := p.registers.pixelBuffer.Unbuffer()
 			p.appendPixel(nextPixel)
@@ -288,11 +288,11 @@ func (p *PPU) moveToNextScanline() {
 
 func (p *PPU) evaluateSprite() {
 	switch p.renderingState.oamEvaluationState {
-	case evaluteOAMYPositionByteFirstCycle:
+	case evaluateOAMYPositionByteFirstCycle:
 		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
 		p.renderingState.oamData = p.oam[index]
-		p.renderingState.oamEvaluationState = evaluteOAMYPositionByteSecondCycle
-	case evaluteOAMYPositionByteSecondCycle:
+		p.renderingState.oamEvaluationState = evaluateOAMYPositionByteSecondCycle
+	case evaluateOAMYPositionByteSecondCycle:
 		if p.secondaryOAMIndex == 32 {
 			p.ports.status |= setSpriteOverflowFlag
 			return
@@ -304,36 +304,36 @@ func (p *PPU) evaluateSprite() {
 		if spriteInScanline {
 			p.appendSecondaryOAMData(p.renderingState.oamData)
 			p.renderingState.oamSpriteByte = (p.renderingState.oamSpriteByte + 1) & 0b11
-			p.renderingState.oamEvaluationState = evaluteOAMTileIndexFirstCycle
+			p.renderingState.oamEvaluationState = evaluateOAMTileIndexFirstCycle
 		} else {
 			p.renderingState.oamSprite = (p.renderingState.oamSprite + 1) & 0b111111
-			p.renderingState.oamEvaluationState = evaluteOAMYPositionByteFirstCycle
+			p.renderingState.oamEvaluationState = evaluateOAMYPositionByteFirstCycle
 		}
-	case evaluteOAMTileIndexFirstCycle:
+	case evaluateOAMTileIndexFirstCycle:
 		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
 		p.renderingState.oamData = p.oam[index]
-		p.renderingState.oamEvaluationState = evaluteOAMTileIndexSecondCycle
-	case evaluteOAMTileIndexSecondCycle:
+		p.renderingState.oamEvaluationState = evaluateOAMTileIndexSecondCycle
+	case evaluateOAMTileIndexSecondCycle:
 		p.appendSecondaryOAMData(p.renderingState.oamData)
 		p.renderingState.oamSpriteByte = (p.renderingState.oamSpriteByte + 1) & 0b11
-		p.renderingState.oamEvaluationState = evaluteOAMAttrByteFirstCycle
-	case evaluteOAMAttrByteFirstCycle:
+		p.renderingState.oamEvaluationState = evaluateOAMAttrByteFirstCycle
+	case evaluateOAMAttrByteFirstCycle:
 		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
 		p.renderingState.oamData = p.oam[index]
-		p.renderingState.oamEvaluationState = evaluteOAMAttrByteSecondCycle
-	case evaluteOAMAttrByteSecondCycle:
+		p.renderingState.oamEvaluationState = evaluateOAMAttrByteSecondCycle
+	case evaluateOAMAttrByteSecondCycle:
 		p.appendSecondaryOAMData(p.renderingState.oamData)
 		p.renderingState.oamSpriteByte = (p.renderingState.oamSpriteByte + 1) & 0b11
-		p.renderingState.oamEvaluationState = evaluteOAMXPositionFirstCycle
-	case evaluteOAMXPositionFirstCycle:
+		p.renderingState.oamEvaluationState = evaluateOAMXPositionFirstCycle
+	case evaluateOAMXPositionFirstCycle:
 		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
 		p.renderingState.oamData = p.oam[index]
-		p.renderingState.oamEvaluationState = evaluteOAMXPositionSecondCycle
-	case evaluteOAMXPositionSecondCycle:
+		p.renderingState.oamEvaluationState = evaluateOAMXPositionSecondCycle
+	case evaluateOAMXPositionSecondCycle:
 		p.appendSecondaryOAMData(p.renderingState.oamData)
 		p.renderingState.oamSpriteByte = (p.renderingState.oamSpriteByte + 1) & 0b11
 		p.renderingState.oamSprite = (p.renderingState.oamSprite + 1) & 0b111111
-		p.renderingState.oamEvaluationState = evaluteOAMYPositionByteFirstCycle
+		p.renderingState.oamEvaluationState = evaluateOAMYPositionByteFirstCycle
 	}
 }
 
@@ -388,7 +388,7 @@ func (p *PPU) addForegroundPixels() {
 		}
 		shiftSize := i
 		if !attr.FlipHorizontally {
-			shiftSize = 7 - 1
+			shiftSize = 7 - i
 		}
 		hi := (p.renderingState.oamHighBitPlane >> shiftSize) & 0b01
 		lo := (p.renderingState.oamLowBitPlane >> shiftSize) & 0b01

@@ -2,6 +2,7 @@ package bus
 
 import (
 	"github.com/LucasWillBlumenau/nes/cartridge"
+	"github.com/LucasWillBlumenau/nes/joypad"
 	"github.com/LucasWillBlumenau/nes/ppu"
 )
 
@@ -17,22 +18,22 @@ const ppuOAMDMAPortAddr = 0x4014
 const ppuJoypadOnePortAddr = 0x4016
 
 type Bus struct {
-	ram              []uint8
-	cartridge        *cartridge.Cartridge
-	ppu              *ppu.PPU
-	joypadOneChannel *uint8
+	ram       []uint8
+	cartridge *cartridge.Cartridge
+	ppu       *ppu.PPU
+	joypadOne *joypad.Joypad
 }
 
 func NewBus(
 	ppu *ppu.PPU,
 	cartridge *cartridge.Cartridge,
-	joypadOneChannel *uint8,
+	joypadOne *joypad.Joypad,
 ) *Bus {
 	ram := make([]byte, 2*1024)
 	return &Bus{
 		cartridge: cartridge,
 		ram:       ram, ppu: ppu,
-		joypadOneChannel: joypadOneChannel,
+		joypadOne: joypadOne,
 	}
 }
 
@@ -64,6 +65,8 @@ func (b *Bus) Write(addr uint16, value uint8) bool {
 		switch addr {
 		case ppuOAMDMAPortAddr:
 			return true
+		case ppuJoypadOnePortAddr:
+			b.joypadOne.SetStrobe(value)
 		}
 	}
 	return false
@@ -94,9 +97,7 @@ func (b *Bus) Read(addr uint16) uint8 {
 
 	switch addr {
 	case ppuJoypadOnePortAddr:
-		value := *b.joypadOneChannel
-		*b.joypadOneChannel = value >> 1
-		return value
+		return b.joypadOne.Read()
 	}
 
 	// TODO: check out behavior on read to write-only ports

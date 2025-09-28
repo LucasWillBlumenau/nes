@@ -6,18 +6,19 @@ import (
 	"log"
 	"unsafe"
 
+	"github.com/LucasWillBlumenau/nes/joypad"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
 const (
-	buttonAMask      uint8 = 0b00000001
-	buttonBMask      uint8 = 0b00000010
-	buttonSelectMask uint8 = 0b00000100
-	buttonStartMask  uint8 = 0b00001000
-	buttonUpMask     uint8 = 0b00010000
-	buttonDownMask   uint8 = 0b00100000
-	buttonLeftMask   uint8 = 0b01000000
-	buttonRightMask  uint8 = 0b10000000
+	buttonAMask      uint8 = 0b11111110
+	buttonBMask      uint8 = 0b11111101
+	buttonSelectMask uint8 = 0b11111011
+	buttonStartMask  uint8 = 0b11110111
+	buttonUpMask     uint8 = 0b11101111
+	buttonDownMask   uint8 = 0b11011111
+	buttonLeftMask   uint8 = 0b10111111
+	buttonRightMask  uint8 = 0b01111111
 )
 
 type WindowSize struct {
@@ -30,29 +31,29 @@ func (s *WindowSize) Area() int {
 }
 
 type Window struct {
-	CloseChannel     chan struct{}
-	imageBuffer      chan []color.RGBA
-	joypadOneChannel *uint8
-	joypadTwoChannel *uint8
-	window           *sdl.Window
-	renderer         *sdl.Renderer
-	texture          *sdl.Texture
-	size             WindowSize
+	CloseChannel chan struct{}
+	imageBuffer  chan []color.RGBA
+	joypadOne    *joypad.Joypad
+	joypadTwo    *joypad.Joypad
+	window       *sdl.Window
+	renderer     *sdl.Renderer
+	texture      *sdl.Texture
+	size         WindowSize
 }
 
 func NewWindow(
 	size WindowSize,
-	joypadOneChannel *uint8,
-	joypadTwoChannel *uint8,
+	joypadOne *joypad.Joypad,
+	joypadTwo *joypad.Joypad,
 ) *Window {
 	imageBuffer := make(chan []color.RGBA, 120)
 	closeChannel := make(chan struct{})
 	return &Window{
-		imageBuffer:      imageBuffer,
-		CloseChannel:     closeChannel,
-		joypadOneChannel: joypadOneChannel,
-		joypadTwoChannel: joypadTwoChannel,
-		size:             size,
+		imageBuffer:  imageBuffer,
+		CloseChannel: closeChannel,
+		joypadOne:    joypadOne,
+		joypadTwo:    joypadTwo,
+		size:         size,
 	}
 }
 
@@ -83,16 +84,17 @@ func (w *Window) Start() {
 	w.texture = w.createTexture()
 	defer w.texture.Destroy()
 	for {
+		var joypadOneValue uint8 = buttonSelectMask // 0xFF
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event := event.(type) {
 			case *sdl.QuitEvent:
 				w.CloseChannel <- struct{}{}
 				return
 			case *sdl.KeyboardEvent:
-				w.writeToJoypad(event)
+				joypadOneValue &= w.readJoypadButton(event)
 			}
 		}
-
+		w.joypadOne.Write(joypadOneValue)
 		keys := sdl.GetKeyboardState()
 		if keys[sdl.SCANCODE_ESCAPE] != 0 {
 			w.CloseChannel <- struct{}{}
@@ -144,39 +146,36 @@ func (w *Window) createWindow() *sdl.Window {
 	return window
 }
 
-func (w *Window) writeToJoypad(event *sdl.KeyboardEvent) {
-	switch event.Type {
-	case sdl.KEYDOWN:
+func (w *Window) readJoypadButton(event *sdl.KeyboardEvent) uint8 {
+	if event.Type == sdl.KEYDOWN {
 		switch event.Keysym.Sym {
 		case sdl.K_1:
-			*w.joypadOneChannel = buttonAMask
 			fmt.Println("Button A clicked")
+			return buttonAMask
 		case sdl.K_2:
-			*w.joypadOneChannel = buttonBMask
 			fmt.Println("Button B clicked")
+			return buttonBMask
 		case sdl.K_BACKSPACE:
-			*w.joypadOneChannel = buttonSelectMask
 			fmt.Println("Button Select clicked")
-		case sdl.K_KP_ENTER:
-			*w.joypadOneChannel = buttonStartMask
+			return buttonSelectMask
+		case sdl.K_RETURN:
 			fmt.Println("Button Start clicked")
+			return buttonStartMask
 		case sdl.K_w:
-			*w.joypadOneChannel = buttonUpMask
 			fmt.Println("ButtonU Up clicked")
+			return buttonUpMask
 		case sdl.K_s:
-			*w.joypadOneChannel = buttonDownMask
 			fmt.Println("Button Down clicked")
+			return buttonDownMask
 		case sdl.K_a:
-			*w.joypadOneChannel = buttonLeftMask
 			fmt.Println("Button Left clicked")
+			return buttonLeftMask
 		case sdl.K_d:
-			*w.joypadOneChannel = buttonRightMask
 			fmt.Println("Button Right clicked")
-		default:
+			return buttonRightMask
 		}
-	case sdl.KEYUP:
-		*w.joypadOneChannel = 0
 	}
+	return 0xFF
 }
 
 func (w *Window) updateImage(colors []color.RGBA) {

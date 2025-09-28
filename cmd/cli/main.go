@@ -7,6 +7,7 @@ import (
 	"github.com/LucasWillBlumenau/nes/bus"
 	"github.com/LucasWillBlumenau/nes/cartridge"
 	"github.com/LucasWillBlumenau/nes/cpu"
+	"github.com/LucasWillBlumenau/nes/joypad"
 	"github.com/LucasWillBlumenau/nes/ppu"
 	"github.com/LucasWillBlumenau/nes/window"
 )
@@ -29,13 +30,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	var joypadOneChannel uint8 = 0
-	var joypadTwoChannel uint8 = 0
+	joypadOne := joypad.New()
+	joypadTwo := joypad.New()
 	windowSize := window.WindowSize{Width: 256, Height: 240}
 
-	gameWindow := window.NewWindow(windowSize, &joypadOneChannel, &joypadTwoChannel)
+	gameWindow := window.NewWindow(windowSize, joypadOne, joypadTwo)
 	ppu := ppu.NewPPU(cart.CharacterRom)
-	bus := bus.NewBus(ppu, cart, &joypadOneChannel)
+	bus := bus.NewBus(ppu, cart, joypadOne)
 	cpu := cpu.NewCPU(bus)
 	cpu.SetRomEntrypoint()
 
