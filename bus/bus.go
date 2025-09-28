@@ -5,36 +5,38 @@ import (
 	"github.com/LucasWillBlumenau/nes/ppu"
 )
 
-// memory unit constants
-const kb = 1024
-
-// ppu register constants
-const ppuControlPortAddr uint16 = 0x2000
-const ppuMaskPortAddr uint16 = 0x2001
-const ppuStatusPortAddr uint16 = 0x2002
+const ppuControlPortAddr = 0x2000
+const ppuMaskPortAddr = 0x2001
+const ppuStatusPortAddr = 0x2002
 const ppuOAMAddressPortAddr = 0x2003
 const ppuOAMDataPortAddr = 0x2004
 const ppuScrollPortAddr = 0x2005
 const ppuVRamAddressPortAddr = 0x2006
 const ppuVRamDataPortAddr = 0x2007
-
-// low byte, followed by high byte
-var nmiAddressLocation = []uint16{0xFFFA, 0xFFFB}
-var resetAddressLocation = []uint16{0xFFFC, 0xFFFD}
-var irqAddressLocation = []uint16{0xFFFE, 0xFFFF}
+const ppuOAMDMAPortAddr = 0x4014
+const ppuJoypadOnePortAddr = 0x4016
 
 type Bus struct {
-	ram       []uint8
-	cartridge *cartridge.Cartridge
-	ppu       *ppu.PPU
+	ram              []uint8
+	cartridge        *cartridge.Cartridge
+	ppu              *ppu.PPU
+	joypadOneChannel *uint8
 }
 
-func NewBus(ppu *ppu.PPU, cartridge *cartridge.Cartridge) *Bus {
-	ram := make([]byte, 2*kb)
-	return &Bus{cartridge: cartridge, ram: ram, ppu: ppu}
+func NewBus(
+	ppu *ppu.PPU,
+	cartridge *cartridge.Cartridge,
+	joypadOneChannel *uint8,
+) *Bus {
+	ram := make([]byte, 2*1024)
+	return &Bus{
+		cartridge: cartridge,
+		ram:       ram, ppu: ppu,
+		joypadOneChannel: joypadOneChannel,
+	}
 }
 
-func (b *Bus) Write(addr uint16, value uint8) {
+func (b *Bus) Write(addr uint16, value uint8) bool {
 	valueAddress := b.getValueAddress(addr)
 	if valueAddress != nil {
 		*valueAddress = value
@@ -47,21 +49,29 @@ func (b *Bus) Write(addr uint16, value uint8) {
 			b.ppu.WritePPUControlPort(value)
 		case ppuMaskPortAddr:
 			b.ppu.WritePPUMaskPort(value)
-		// case ppuOAMAddressPortAddr:
-		// 	b.ppu.WriteOAMAddrPort(value)
-		// case ppuOAMDataPortAddr:
-		// 	b.ppu.WriteOAMDataPort(value)
-		// case ppuScrollPortAddr:
-		// 	b.ppu.WritePPUScrollPort(value)
+		case ppuOAMAddressPortAddr:
+			b.ppu.WriteOAMAddrPort(value)
+		case ppuOAMDataPortAddr:
+			b.OAMWrite(value)
+		case ppuScrollPortAddr:
+			b.ppu.WritePPUScrollPort(value)
 		case ppuVRamAddressPortAddr:
 			b.ppu.WritePPUAddrPort(value)
 		case ppuVRamDataPortAddr:
 			b.ppu.WritePPUDataPort(value)
 		}
+	} else {
+		switch addr {
+		case ppuOAMDMAPortAddr:
+			return true
+		}
 	}
-
+	return false
 	// TODO: check out behavior when doing writes to addresses that should only be read
-	// panic("invalid address found")
+}
+
+func (b *Bus) OAMWrite(value uint8) {
+	b.ppu.WriteOAMDataPort(value)
 }
 
 func (b *Bus) Read(addr uint16) uint8 {
@@ -70,14 +80,23 @@ func (b *Bus) Read(addr uint16) uint8 {
 		return *valueAddress
 	}
 
-	addr &= 0x2007
+	if addr < 0x4000 {
+		addr &= 0x2007
+		switch addr {
+		case ppuStatusPortAddr:
+			return b.ppu.ReadStatusPort()
+		case ppuOAMDataPortAddr:
+			return b.ppu.ReadOAMDataPort()
+		case ppuVRamDataPortAddr:
+			return b.ppu.ReadVRamDataPort()
+		}
+	}
+
 	switch addr {
-	case ppuStatusPortAddr:
-		return b.ppu.ReadStatusPort()
-	case ppuOAMDataPortAddr:
-		return b.ppu.ReadOAMDataPort()
-	case ppuVRamDataPortAddr:
-		return b.ppu.ReadVRamDataPort()
+	case ppuJoypadOnePortAddr:
+		value := *b.joypadOneChannel
+		*b.joypadOneChannel = value >> 1
+		return value
 	}
 
 	// TODO: check out behavior on read to write-only ports

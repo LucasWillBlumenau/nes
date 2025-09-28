@@ -29,9 +29,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	gameWindow := window.NewWindow(256, 240)
+	var joypadOneChannel uint8 = 0
+	var joypadTwoChannel uint8 = 0
+	windowSize := window.WindowSize{Width: 256, Height: 240}
+
+	gameWindow := window.NewWindow(windowSize, &joypadOneChannel, &joypadTwoChannel)
 	ppu := ppu.NewPPU(cart.CharacterRom)
-	bus := bus.NewBus(ppu, cart)
+	bus := bus.NewBus(ppu, cart, &joypadOneChannel)
 	cpu := cpu.NewCPU(bus)
 	cpu.SetRomEntrypoint()
 
@@ -42,14 +46,14 @@ func main() {
 			if err != nil {
 				log.Fatalln(err)
 			}
-			for range cyclesTaken {
+			ppuCycles := cyclesTaken * 3
+			for range ppuCycles {
 				ppu.RunStep()
 			}
 			if ppu.FrameDone() {
 				image := ppu.GetGeneratedImage()
 				gameWindow.UpdateImageBuffer(image)
 			}
-
 		}
 	}()
 	<-gameWindow.CloseChannel

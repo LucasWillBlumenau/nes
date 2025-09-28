@@ -88,7 +88,7 @@ const (
 type Instruction struct {
 	AddressingMode AddressingMode
 	Dispatch       func(*CPU, uint16)
-	Cycles         uint8
+	Cycles         uint16
 }
 
 var instructionMap = [256]Instruction{

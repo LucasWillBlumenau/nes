@@ -10,10 +10,11 @@ const (
 	tileSize           uint16 = 16
 	highBitPlaneOffset uint16 = 8
 
-	enableStatusVBlank        uint8 = 0b10000000
-	disableStatusVBlank       uint8 = 0b01111111
-	disableSprite0HitFlag     uint8 = 0b10111111
-	disableSpriteOverflowFlag uint8 = 0b11011111
+	setStatusVBlank         uint8 = 0b10000000
+	setSpriteOverflowFlag   uint8 = 0b00100000
+	resetStatusVBlank       uint8 = 0b01111111
+	resetSprite0HitFlag     uint8 = 0b10111111
+	resetSpriteOverflowFlag uint8 = 0b11011111
 )
 
 type ppuPorts struct {
@@ -32,6 +33,7 @@ type ppuRegisters struct {
 	writeLatch   bool
 	pixelBuffer  pixelsShiftRegister
 	nametable    uint16
+	oamAddr      uint8
 }
 
 type pixelFetchingState uint8
@@ -47,29 +49,72 @@ const (
 	stateFetchPatternTableHighPlaneSecondCycle
 )
 
+type oamEvaluationState uint8
+
+const (
+	evaluteOAMYPositionByteFirstCycle oamEvaluationState = iota
+	evaluteOAMYPositionByteSecondCycle
+	evaluteOAMTileIndexFirstCycle
+	evaluteOAMTileIndexSecondCycle
+	evaluteOAMAttrByteFirstCycle
+	evaluteOAMAttrByteSecondCycle
+	evaluteOAMXPositionFirstCycle
+	evaluteOAMXPositionSecondCycle
+)
+
+type oamFetchingState uint8
+
+const (
+	fetchOAMGarbageReadFirstCycle oamFetchingState = iota
+	fetchOAMGarbageReadSecondCycle
+	fetchOAMGarbageRead2FirstCycle
+	fetchOAMGarbageRead2SecondCycle
+	fetchOAMLowBitPlaneFirstCycle
+	fetchOAMLowBitPlaneSecondCycle
+	fetchOAMHighBitPlaneFirstCycle
+	fetchOAMHighBitPlaneSecondCycle
+)
+
 type ppuRenderingState struct {
-	scanline      uint16
-	clock         uint16
-	fetchingState pixelFetchingState
-	tileIndex     uint8
-	lowBitPlane   uint8
-	highBitPlane  uint8
-	paletteId     uint8
-	currentAddr   uint16
-	coarseX       uint16
-	coarseY       uint16
-	fineX         uint16
-	fineY         uint16
+	scanline                  uint16
+	clock                     uint16
+	fetchingState             pixelFetchingState
+	tileIndex                 uint8
+	lowBitPlane               uint8
+	highBitPlane              uint8
+	paletteId                 uint8
+	currentAddr               uint16
+	coarseX                   uint16
+	coarseY                   uint16
+	fineX                     uint16
+	fineY                     uint16
+	oamFetchingState          oamFetchingState
+	oamEvaluationState        oamEvaluationState
+	oamData                   uint8
+	oamSprite                 uint8
+	oamSpriteByte             uint8
+	oamSpriteAddress          uint16
+	oamLowBitPlane            uint8
+	oamHighBitPlane           uint8
+	oamSpriteY                uint16
+	oamTileIndex              uint16
+	oamSpriteAttr             spriteAttributes
+	currentSpriteBeingFetched int
 }
 
 type PPU struct {
-	bus            *bus
-	bufferedImage  [256 * 240]color.RGBA
-	currentPixel   uint32
-	frameDone      bool
-	ports          ppuPorts
-	renderingState ppuRenderingState
-	registers      ppuRegisters
+	bus                *bus
+	bufferedImage      [256 * 240]color.RGBA
+	oam                [256]uint8
+	secondaryOAM       [32]uint8
+	foreground         [256]color.RGBA
+	foregroundPriority [256]bool
+	secondaryOAMIndex  int
+	currentPixel       uint32
+	frameDone          bool
+	ports              ppuPorts
+	renderingState     ppuRenderingState
+	registers          ppuRegisters
 }
 
 func NewPPU(chrRom []uint8) *PPU {
@@ -91,14 +136,14 @@ func NewPPU(chrRom []uint8) *PPU {
 
 func (p *PPU) ReadStatusPort() uint8 {
 	currentStatus := p.ports.status
-	p.ports.status &= enableStatusVBlank ^ 0xFF
+	p.ports.status &= setStatusVBlank ^ 0xFF
 	p.registers.writeLatch = false
 
 	return currentStatus
 }
 
 func (p *PPU) ReadOAMDataPort() uint8 {
-	return 0
+	return p.oam[p.registers.oamAddr]
 }
 
 func (p *PPU) ReadVRamDataPort() uint8 {
@@ -117,11 +162,12 @@ func (p *PPU) WritePPUMaskPort(value uint8) {
 }
 
 func (p *PPU) WriteOAMAddrPort(value uint8) {
-
+	p.registers.oamAddr = value
 }
 
 func (p *PPU) WriteOAMDataPort(value uint8) {
-
+	p.oam[p.registers.oamAddr] = value
+	p.registers.oamAddr++
 }
 
 func (p *PPU) WritePPUScrollPort(value uint8) {
@@ -156,9 +202,9 @@ func (p *PPU) RunStep() {
 
 	if preRenderScanline {
 		if p.renderingState.clock == 1 {
-			p.ports.status &= disableStatusVBlank
-			p.ports.status &= disableSprite0HitFlag
-			p.ports.status &= disableSpriteOverflowFlag
+			p.ports.status &= resetStatusVBlank
+			p.ports.status &= resetSprite0HitFlag
+			p.ports.status &= resetSpriteOverflowFlag
 			p.frameDone = false
 			p.currentPixel = 0
 			p.renderingState.coarseY = p.registers.coarseY
@@ -173,33 +219,39 @@ func (p *PPU) RunStep() {
 			}
 		}
 	} else if p.renderingState.scanline < 240 {
-		if p.renderingState.clock >= 1 && p.renderingState.clock < 257 {
+		if p.renderingState.clock == 0 {
+			p.renderingState.oamSprite = 0
+			p.renderingState.oamSpriteByte = 0
+			p.secondaryOAMIndex = 0
+			p.renderingState.currentSpriteBeingFetched = 0
+			p.renderingState.oamEvaluationState = evaluteOAMYPositionByteFirstCycle
+		} else if p.renderingState.clock < 257 {
 			nextPixel := p.registers.pixelBuffer.Unbuffer()
 			p.appendPixel(nextPixel)
 			p.fetchNextTile()
-		} else if p.renderingState.clock == 257 {
-			if p.registers.fineY == 7 {
-				p.registers.fineY = 0
-				if p.renderingState.coarseY == 31 {
-					p.renderingState.coarseY = 0
-					p.registers.nametable ^= 0b10
-				} else {
-					p.renderingState.coarseY++
-				}
 
+			if p.renderingState.clock < 65 {
+				index := (p.renderingState.clock - 1) >> 1
+				p.secondaryOAM[index] = 0xFF
 			} else {
-				p.registers.fineY++
+				p.evaluateSprite()
 			}
-			p.renderingState.coarseX = p.registers.coarseX
-			p.renderingState.fineX = p.registers.fineX
-		} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
+		} else if p.renderingState.clock < 321 {
+			if p.renderingState.clock == 257 {
+				p.moveToNextScanline()
+			}
+			isDoneFetchingSprites := p.secondaryOAMIndex < p.renderingState.currentSpriteBeingFetched
+			if !isDoneFetchingSprites {
+				p.fetchSprite()
+			}
+		} else if p.renderingState.clock < 337 {
 			p.fetchNextTile()
 		}
 	} else if p.renderingState.scanline == 240 && p.renderingState.clock == 0 {
 		p.vBlank()
 		p.frameDone = true
 	} else if p.renderingState.scanline == 241 && p.renderingState.clock == 1 {
-		p.ports.status |= enableStatusVBlank
+		p.ports.status |= setStatusVBlank
 	}
 
 }
@@ -215,6 +267,134 @@ func (p *PPU) incrementCycle() {
 		p.renderingState.scanline = 0
 	} else {
 		p.renderingState.scanline++
+	}
+}
+
+func (p *PPU) moveToNextScanline() {
+	if p.registers.fineY == 7 {
+		p.registers.fineY = 0
+		if p.renderingState.coarseY == 31 {
+			p.renderingState.coarseY = 0
+			p.registers.nametable ^= 0b10
+		} else {
+			p.renderingState.coarseY++
+		}
+	} else {
+		p.registers.fineY++
+	}
+	p.renderingState.coarseX = p.registers.coarseX
+	p.renderingState.fineX = p.registers.fineX
+}
+
+func (p *PPU) evaluateSprite() {
+	switch p.renderingState.oamEvaluationState {
+	case evaluteOAMYPositionByteFirstCycle:
+		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
+		p.renderingState.oamData = p.oam[index]
+		p.renderingState.oamEvaluationState = evaluteOAMYPositionByteSecondCycle
+	case evaluteOAMYPositionByteSecondCycle:
+		if p.secondaryOAMIndex == 32 {
+			p.ports.status |= setSpriteOverflowFlag
+			return
+		}
+		start := p.renderingState.oamData
+		end := start + 8
+		nextScanline := uint8(p.renderingState.scanline) + 1
+		spriteInScanline := nextScanline >= start && nextScanline < end
+		if spriteInScanline {
+			p.appendSecondaryOAMData(p.renderingState.oamData)
+			p.renderingState.oamSpriteByte = (p.renderingState.oamSpriteByte + 1) & 0b11
+			p.renderingState.oamEvaluationState = evaluteOAMTileIndexFirstCycle
+		} else {
+			p.renderingState.oamSprite = (p.renderingState.oamSprite + 1) & 0b111111
+			p.renderingState.oamEvaluationState = evaluteOAMYPositionByteFirstCycle
+		}
+	case evaluteOAMTileIndexFirstCycle:
+		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
+		p.renderingState.oamData = p.oam[index]
+		p.renderingState.oamEvaluationState = evaluteOAMTileIndexSecondCycle
+	case evaluteOAMTileIndexSecondCycle:
+		p.appendSecondaryOAMData(p.renderingState.oamData)
+		p.renderingState.oamSpriteByte = (p.renderingState.oamSpriteByte + 1) & 0b11
+		p.renderingState.oamEvaluationState = evaluteOAMAttrByteFirstCycle
+	case evaluteOAMAttrByteFirstCycle:
+		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
+		p.renderingState.oamData = p.oam[index]
+		p.renderingState.oamEvaluationState = evaluteOAMAttrByteSecondCycle
+	case evaluteOAMAttrByteSecondCycle:
+		p.appendSecondaryOAMData(p.renderingState.oamData)
+		p.renderingState.oamSpriteByte = (p.renderingState.oamSpriteByte + 1) & 0b11
+		p.renderingState.oamEvaluationState = evaluteOAMXPositionFirstCycle
+	case evaluteOAMXPositionFirstCycle:
+		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
+		p.renderingState.oamData = p.oam[index]
+		p.renderingState.oamEvaluationState = evaluteOAMXPositionSecondCycle
+	case evaluteOAMXPositionSecondCycle:
+		p.appendSecondaryOAMData(p.renderingState.oamData)
+		p.renderingState.oamSpriteByte = (p.renderingState.oamSpriteByte + 1) & 0b11
+		p.renderingState.oamSprite = (p.renderingState.oamSprite + 1) & 0b111111
+		p.renderingState.oamEvaluationState = evaluteOAMYPositionByteFirstCycle
+	}
+}
+
+func (p *PPU) fetchSprite() {
+	switch p.renderingState.oamFetchingState {
+	case fetchOAMGarbageReadFirstCycle:
+		p.renderingState.oamFetchingState = fetchOAMGarbageReadSecondCycle
+	case fetchOAMGarbageReadSecondCycle:
+		p.renderingState.oamFetchingState = fetchOAMGarbageRead2FirstCycle
+	case fetchOAMGarbageRead2FirstCycle:
+		p.renderingState.oamFetchingState = fetchOAMGarbageRead2SecondCycle
+	case fetchOAMGarbageRead2SecondCycle:
+		spriteY := p.secondaryOAM[p.renderingState.currentSpriteBeingFetched*4]
+		tileIndex := p.secondaryOAM[p.renderingState.currentSpriteBeingFetched*4+1]
+		spriteAttr := p.secondaryOAM[p.renderingState.currentSpriteBeingFetched*4+2]
+		p.renderingState.oamTileIndex = uint16(tileIndex)
+		p.renderingState.oamSpriteAttr = newSpriteAttributesFromByte(spriteAttr)
+
+		deltaY := (p.renderingState.scanline + 1) - uint16(spriteY)
+		p.renderingState.oamSpriteY = deltaY
+		if p.renderingState.oamSpriteAttr.FlipVertically {
+			p.renderingState.oamSpriteY = 7 - deltaY
+		}
+		p.renderingState.oamFetchingState = fetchOAMLowBitPlaneFirstCycle
+	case fetchOAMLowBitPlaneFirstCycle:
+		patternTableIndex := p.renderingState.oamTileIndex*tileSize + p.renderingState.oamSpriteY
+		p.renderingState.oamSpriteAddress = p.ports.control.spritePatternTableAddr | patternTableIndex
+		p.renderingState.oamFetchingState = fetchOAMLowBitPlaneSecondCycle
+	case fetchOAMLowBitPlaneSecondCycle:
+		p.renderingState.oamLowBitPlane = p.bus.read(p.renderingState.oamSpriteAddress)
+		p.renderingState.oamFetchingState = fetchOAMHighBitPlaneFirstCycle
+	case fetchOAMHighBitPlaneFirstCycle:
+		patternTableIndex := p.renderingState.oamTileIndex*tileSize + p.renderingState.oamSpriteY + 8
+		p.renderingState.oamSpriteAddress = p.ports.control.spritePatternTableAddr | patternTableIndex
+		p.renderingState.oamFetchingState = fetchOAMHighBitPlaneSecondCycle
+	case fetchOAMHighBitPlaneSecondCycle:
+		p.renderingState.oamHighBitPlane = p.bus.read(p.renderingState.oamSpriteAddress)
+		p.addForegroundPixels()
+		p.renderingState.currentSpriteBeingFetched++
+		p.renderingState.oamFetchingState = fetchOAMGarbageReadFirstCycle
+	}
+}
+
+func (p *PPU) addForegroundPixels() {
+	attrByte := p.secondaryOAM[p.renderingState.currentSpriteBeingFetched*4+2]
+	attr := newSpriteAttributesFromByte(attrByte)
+	xPosition := int(p.secondaryOAM[p.renderingState.currentSpriteBeingFetched*4+3])
+	for i := range 8 {
+		index := xPosition + i
+		if index >= len(p.foreground) {
+			break
+		}
+		shiftSize := i
+		if !attr.FlipHorizontally {
+			shiftSize = 7 - 1
+		}
+		hi := (p.renderingState.oamHighBitPlane >> shiftSize) & 0b01
+		lo := (p.renderingState.oamLowBitPlane >> shiftSize) & 0b01
+		colorIdx := hi<<1 | lo
+		p.foreground[index] = p.bus.GetSpriteColor(attr.Palette, colorIdx)
+		p.foregroundPriority[index] = attr.HasPriority
 	}
 }
 
@@ -273,16 +453,32 @@ func (p *PPU) updateShiftRegisterWithFetchedData() {
 		hi := (p.renderingState.highBitPlane >> shift) & 0b01
 		lo := (p.renderingState.lowBitPlane >> shift) & 0b01
 		colorIdx := (hi << 1) | lo
-		addr := 0x3F00 + uint16(p.renderingState.paletteId*4+colorIdx)
-
-		color := nesPalette[p.bus.read(addr)]
+		color := p.bus.GetBackgroundColor(p.renderingState.paletteId, colorIdx)
 		p.registers.pixelBuffer.Buffer(color)
 	}
 }
 
-func (p *PPU) appendPixel(color color.RGBA) {
-	p.bufferedImage[p.currentPixel] = color
+func (p *PPU) appendPixel(pixel color.RGBA) {
+	var defaultColor color.RGBA
+	pixelIndex := p.renderingState.clock - 1
+	foregroundPixel := p.foreground[pixelIndex]
+
+	bgIsTransparent := pixel == p.bus.GetBackgroundTransparencyColor()
+	spriteIsTransparent := foregroundPixel == p.bus.GetSpriteTransparencyColor()
+	spriteHasPriority := p.foregroundPriority[pixelIndex]
+
+	if !spriteIsTransparent && (bgIsTransparent || spriteHasPriority) {
+		p.bufferedImage[p.currentPixel] = foregroundPixel
+		p.foreground[pixelIndex] = defaultColor
+	} else {
+		p.bufferedImage[p.currentPixel] = pixel
+	}
 	p.currentPixel++
+}
+
+func (p *PPU) appendSecondaryOAMData(data uint8) {
+	p.secondaryOAM[p.secondaryOAMIndex] = data
+	p.secondaryOAMIndex++
 }
 
 func (p *PPU) FrameDone() bool {

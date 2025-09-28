@@ -5,7 +5,7 @@ func Bcc(cpu *CPU, fetchedValue uint16) {
 
 	if !cpu.GetStatusFlag(StatusFlagCarry) {
 		cpu.Pc = fetchedValue
-		cpu.SetBranchTaken()
+		cpu.ElapseCycle()
 	}
 }
 
@@ -14,7 +14,7 @@ func Bcs(cpu *CPU, fetchedValue uint16) {
 
 	if cpu.GetStatusFlag(StatusFlagCarry) {
 		cpu.Pc = fetchedValue
-		cpu.SetBranchTaken()
+		cpu.ElapseCycle()
 	}
 }
 
@@ -23,7 +23,7 @@ func Beq(cpu *CPU, fetchedValue uint16) {
 
 	if cpu.GetStatusFlag(StatusFlagZero) {
 		cpu.Pc = fetchedValue
-		cpu.SetBranchTaken()
+		cpu.ElapseCycle()
 	}
 }
 
@@ -32,7 +32,7 @@ func Bmi(cpu *CPU, fetchedValue uint16) {
 
 	if cpu.GetStatusFlag(StatusFlagNegative) {
 		cpu.Pc = fetchedValue
-		cpu.SetBranchTaken()
+		cpu.ElapseCycle()
 	}
 }
 
@@ -41,7 +41,7 @@ func Bne(cpu *CPU, fetchedValue uint16) {
 
 	if !cpu.GetStatusFlag(StatusFlagZero) {
 		cpu.Pc = fetchedValue
-		cpu.SetBranchTaken()
+		cpu.ElapseCycle()
 	}
 }
 
@@ -50,7 +50,7 @@ func Bpl(cpu *CPU, fetchedValue uint16) {
 
 	if !cpu.GetStatusFlag(StatusFlagNegative) {
 		cpu.Pc = fetchedValue
-		cpu.SetBranchTaken()
+		cpu.ElapseCycle()
 	}
 }
 
@@ -59,7 +59,7 @@ func Bvc(cpu *CPU, fetchedValue uint16) {
 
 	if !cpu.GetStatusFlag(StatusFlagOverflow) {
 		cpu.Pc = fetchedValue
-		cpu.SetBranchTaken()
+		cpu.ElapseCycle()
 	}
 }
 
@@ -68,6 +68,6 @@ func Bvs(cpu *CPU, fetchedValue uint16) {
 
 	if cpu.GetStatusFlag(StatusFlagOverflow) {
 		cpu.Pc = fetchedValue
-		cpu.SetBranchTaken()
+		cpu.ElapseCycle()
 	}
 }

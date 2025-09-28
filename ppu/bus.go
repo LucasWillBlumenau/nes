@@ -1,5 +1,7 @@
 package ppu
 
+import "image/color"
+
 var nameTableMirrors = []uint16{
 	0: 0,
 	1: 0,
@@ -71,4 +73,30 @@ func (b *bus) getAddress(addr uint16) *uint8 {
 	} else {
 		return &b.foregroundPalette[addr-0x10]
 	}
+}
+
+func (b *bus) GetBackgroundColor(paletteIndex uint8, colorIndex uint8) color.RGBA {
+	if colorIndex == 0 {
+		return b.GetBackgroundTransparencyColor()
+	}
+	color := b.backgroundPalette[paletteIndex*4+colorIndex]
+	return nesPalette[color]
+}
+
+func (b *bus) GetSpriteColor(paletteIndex uint8, colorIndex uint8) color.RGBA {
+	if colorIndex == 0 {
+		return b.GetSpriteTransparencyColor()
+	}
+	color := b.foregroundPalette[paletteIndex*4+colorIndex]
+	return nesPalette[color]
+}
+
+func (b *bus) GetBackgroundTransparencyColor() color.RGBA {
+	color := b.backgroundPalette[0]
+	return nesPalette[color]
+}
+
+func (b *bus) GetSpriteTransparencyColor() color.RGBA {
+	color := b.foregroundPalette[0]
+	return nesPalette[color]
 }
