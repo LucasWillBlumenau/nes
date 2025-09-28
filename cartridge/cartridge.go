@@ -43,9 +43,9 @@ func LoadCartridgeFromReader(r io.ReadCloser) (*Cartridge, error) {
 	}
 
 	programBanks := headers[programBanksIndex]
-	programSize := uint16(programBanks) * 16 * 1024
+	programSize := uint(programBanks) * 16 * 1024
 	charactersBanks := headers[charactersBanksIndex]
-	charactersSize := uint16(charactersBanks) * 8 * 1024
+	charactersSize := uint(charactersBanks) * 8 * 1024
 	firstControlByte := headers[firstControlByteIndex]
 	secondControlByte := headers[secondControlByteIndex]
 	ramBanksQuantity := headers[ramBanksQuantityIndex]

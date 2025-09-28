@@ -36,7 +36,7 @@ func TestAslInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		bus := bus.NewBus(nil, nil, nil)
+		bus := bus.NewBus(nil, nil, nil, nil)
 		c := cpu.NewCPU(bus)
 		addr := uint16(0x1000)
 
@@ -120,7 +120,7 @@ func TestLsrInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		bus := bus.NewBus(nil, nil, nil)
+		bus := bus.NewBus(nil, nil, nil, nil)
 		c := cpu.NewCPU(bus)
 		addr := uint16(0x1000)
 
@@ -165,12 +165,13 @@ func TestLsrAccumulatorInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		c := &cpu.CPU{A: test.inputValue}
+		c := &cpu.CPU{A: test.inputValue, P: 0b10000000}
 
 		cpu.LsrAccumulator(c, 0)
 		require.Equal(t, test.wantValue, c.A)
 		require.Equal(t, test.wantCFlag, c.GetStatusFlag(cpu.StatusFlagCarry))
 		require.Equal(t, test.wantZFlag, c.GetStatusFlag(cpu.StatusFlagZero))
+		require.Equal(t, false, c.GetStatusFlag(cpu.StatusFlagNegative))
 		require.False(t, c.GetStatusFlag(cpu.StatusFlagNegative))
 	}
 }
@@ -215,7 +216,7 @@ func TestRolInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		bus := bus.NewBus(nil, nil, nil)
+		bus := bus.NewBus(nil, nil, nil, nil)
 		c := cpu.NewCPU(bus)
 		addr := uint16(0x1000)
 
@@ -311,7 +312,7 @@ func TestRorInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		bus := bus.NewBus(nil, nil, nil)
+		bus := bus.NewBus(nil, nil, nil, nil)
 		c := cpu.NewCPU(bus)
 		addr := uint16(0x1000)
 

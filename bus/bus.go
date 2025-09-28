@@ -16,24 +16,28 @@ const ppuVRamAddressPortAddr = 0x2006
 const ppuVRamDataPortAddr = 0x2007
 const ppuOAMDMAPortAddr = 0x4014
 const ppuJoypadOnePortAddr = 0x4016
+const ppuJoypadTwoPortAddr = 0x4017
 
 type Bus struct {
 	ram       []uint8
 	cartridge *cartridge.Cartridge
 	ppu       *ppu.PPU
 	joypadOne *joypad.Joypad
+	joypadTwo *joypad.Joypad
 }
 
 func NewBus(
 	ppu *ppu.PPU,
 	cartridge *cartridge.Cartridge,
 	joypadOne *joypad.Joypad,
+	joypadTwo *joypad.Joypad,
 ) *Bus {
 	ram := make([]byte, 2*1024)
 	return &Bus{
 		cartridge: cartridge,
 		ram:       ram, ppu: ppu,
 		joypadOne: joypadOne,
+		joypadTwo: joypadTwo,
 	}
 }
 
@@ -67,6 +71,8 @@ func (b *Bus) Write(addr uint16, value uint8) bool {
 			return true
 		case ppuJoypadOnePortAddr:
 			b.joypadOne.SetStrobe(value)
+		case ppuJoypadTwoPortAddr:
+			b.joypadTwo.SetStrobe(value)
 		}
 	}
 	return false
@@ -97,7 +103,11 @@ func (b *Bus) Read(addr uint16) uint8 {
 
 	switch addr {
 	case ppuJoypadOnePortAddr:
-		return b.joypadOne.Read()
+		value := b.joypadOne.Read()
+		return value
+	case ppuJoypadTwoPortAddr:
+		value := b.joypadTwo.Read()
+		return value
 	}
 
 	// TODO: check out behavior on read to write-only ports
@@ -118,7 +128,9 @@ func (b *Bus) getValueAddress(addr uint16) *uint8 {
 			addr &= 0xBFFF
 		}
 		addr -= 0x8000
-		return &b.cartridge.ProgramRom[addr]
+		if int(addr) < len(b.cartridge.ProgramRom) {
+			return &b.cartridge.ProgramRom[addr]
+		}
 	}
 	return nil
 }

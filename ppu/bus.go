@@ -54,7 +54,10 @@ func (b *bus) getAddress(addr uint16) *uint8 {
 
 	isChrRomAddr := addr < 0x2000
 	if isChrRomAddr {
-		return &b.patternTables[addr]
+		if int(addr) < len(b.patternTables) {
+			return &b.patternTables[addr]
+		}
+		return nil
 	}
 
 	// TODO: handle horizontal and vertical mirroring, for now it's assumed it is horizontal

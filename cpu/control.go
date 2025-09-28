@@ -43,7 +43,7 @@ func Jsr(cpu *CPU, fetchedValue uint16) {
 func Rti(cpu *CPU, _ uint16) {
 	// fmt.Println("Executing instruction RTI...")
 
-	cpu.P = cpu.Pop()
+	cpu.P = (cpu.Pop() & 0b11001111) | (cpu.P & 0b00110000)
 
 	lo := cpu.Pop()
 	hi := cpu.Pop()

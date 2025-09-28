@@ -30,6 +30,7 @@ func Lsr(cpu *CPU, fetchedValue uint16) {
 	cpu.BusWrite(fetchedValue, result)
 	cpu.SetStatusFlag(StatusFlagCarry, (value&0x01) != 0)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
+	cpu.SetStatusFlag(StatusFlagNegative, false)
 }
 
 func LsrAccumulator(cpu *CPU, fetchedValue uint16) {
@@ -39,6 +40,7 @@ func LsrAccumulator(cpu *CPU, fetchedValue uint16) {
 	cpu.A = result
 	cpu.SetStatusFlag(StatusFlagCarry, (value&0x01) != 0)
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
+	cpu.SetStatusFlag(StatusFlagNegative, false)
 }
 
 func Rol(cpu *CPU, fetchedValue uint16) {

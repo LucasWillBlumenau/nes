@@ -1,7 +1,6 @@
 package window
 
 import (
-	"fmt"
 	"image/color"
 	"log"
 	"unsafe"
@@ -11,14 +10,14 @@ import (
 )
 
 const (
-	buttonAMask      uint8 = 0b11111110
-	buttonBMask      uint8 = 0b11111101
-	buttonSelectMask uint8 = 0b11111011
-	buttonStartMask  uint8 = 0b11110111
-	buttonUpMask     uint8 = 0b11101111
-	buttonDownMask   uint8 = 0b11011111
-	buttonLeftMask   uint8 = 0b10111111
-	buttonRightMask  uint8 = 0b01111111
+	buttonAMask      uint8 = 0b00000001
+	buttonBMask      uint8 = 0b00000010
+	buttonSelectMask uint8 = 0b00000100
+	buttonStartMask  uint8 = 0b00001000
+	buttonUpMask     uint8 = 0b00010000
+	buttonDownMask   uint8 = 0b00100000
+	buttonLeftMask   uint8 = 0b01000000
+	buttonRightMask  uint8 = 0b10000000
 )
 
 type WindowSize struct {
@@ -31,14 +30,16 @@ func (s *WindowSize) Area() int {
 }
 
 type Window struct {
-	CloseChannel chan struct{}
-	imageBuffer  chan []color.RGBA
-	joypadOne    *joypad.Joypad
-	joypadTwo    *joypad.Joypad
-	window       *sdl.Window
-	renderer     *sdl.Renderer
-	texture      *sdl.Texture
-	size         WindowSize
+	CloseChannel   chan struct{}
+	imageBuffer    chan []color.RGBA
+	joypadOne      *joypad.Joypad
+	joypadOneState uint8
+	joypadTwo      *joypad.Joypad
+	joypadTwoState uint8
+	window         *sdl.Window
+	renderer       *sdl.Renderer
+	texture        *sdl.Texture
+	size           WindowSize
 }
 
 func NewWindow(
@@ -84,17 +85,16 @@ func (w *Window) Start() {
 	w.texture = w.createTexture()
 	defer w.texture.Destroy()
 	for {
-		var joypadOneValue uint8 = buttonSelectMask // 0xFF
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event := event.(type) {
 			case *sdl.QuitEvent:
 				w.CloseChannel <- struct{}{}
 				return
 			case *sdl.KeyboardEvent:
-				joypadOneValue &= w.readJoypadButton(event)
+				w.joypadOneState |= w.readJoypadButton(event)
 			}
 		}
-		w.joypadOne.Write(joypadOneValue)
+		w.joypadOneState &= w.joypadOne.Write(w.joypadOneState)
 		keys := sdl.GetKeyboardState()
 		if keys[sdl.SCANCODE_ESCAPE] != 0 {
 			w.CloseChannel <- struct{}{}
@@ -150,32 +150,24 @@ func (w *Window) readJoypadButton(event *sdl.KeyboardEvent) uint8 {
 	if event.Type == sdl.KEYDOWN {
 		switch event.Keysym.Sym {
 		case sdl.K_1:
-			fmt.Println("Button A clicked")
 			return buttonAMask
 		case sdl.K_2:
-			fmt.Println("Button B clicked")
 			return buttonBMask
 		case sdl.K_BACKSPACE:
-			fmt.Println("Button Select clicked")
 			return buttonSelectMask
 		case sdl.K_RETURN:
-			fmt.Println("Button Start clicked")
 			return buttonStartMask
 		case sdl.K_w:
-			fmt.Println("ButtonU Up clicked")
 			return buttonUpMask
 		case sdl.K_s:
-			fmt.Println("Button Down clicked")
 			return buttonDownMask
 		case sdl.K_a:
-			fmt.Println("Button Left clicked")
 			return buttonLeftMask
 		case sdl.K_d:
-			fmt.Println("Button Right clicked")
 			return buttonRightMask
 		}
 	}
-	return 0xFF
+	return 0
 }
 
 func (w *Window) updateImage(colors []color.RGBA) {

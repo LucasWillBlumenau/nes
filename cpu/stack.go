@@ -19,5 +19,5 @@ func Pla(cpu *CPU, _ uint16) {
 
 func Plp(cpu *CPU, _ uint16) {
 	// fmt.Println("Executing instruction PLP...")
-	cpu.P = cpu.Pop()
+	cpu.P = (cpu.Pop() & 0b11001111) | (cpu.P & 0b00110000)
 }

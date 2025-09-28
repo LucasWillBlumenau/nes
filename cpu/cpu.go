@@ -17,6 +17,17 @@ const resetHighByteAddress = 0xFFFD
 const irqLowByteAddress = 0xFFFE
 const irqHighByteAddress = 0xFFFF
 
+type StatusFlag uint8
+
+const (
+	StatusFlagCarry            = 0
+	StatusFlagZero             = 1
+	StatusFlagInterruptDisable = 2
+	StatusFlagDecimal          = 3
+	StatusFlagOverflow         = 6
+	StatusFlagNegative         = 7
+)
+
 type CPU struct {
 	A           uint8
 	X           uint8
@@ -33,8 +44,8 @@ func NewCPU(bus *bus.Bus) *CPU {
 		A:   0,
 		X:   0,
 		Y:   0,
-		P:   0,
-		Sp:  0,
+		P:   0b00100100,
+		Sp:  0xFD,
 		Pc:  0,
 		bus: bus,
 	}
@@ -92,7 +103,9 @@ func (c *CPU) executeInstruction() (uint16, error) {
 		return 0, fmt.Errorf("%w: invalid opcode %02X", ErrInvalidInstruction, opcode)
 	}
 	c.Pc++
+	// fmt.Println(instruction.Stringfy(c))
 	value := c.fetchNextValue(instruction.AddressingMode)
+
 	instruction.Dispatch(c, value)
 	return instruction.Cycles + c.extraCycles, nil
 }
@@ -194,16 +207,16 @@ func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
 		}
 		return nextAddr
 	case XIndexedZeroPageIndirectValue:
-		addr := uint16(c.getImmediateValue() + c.X)
-		lo := c.BusRead(addr)
-		hi := c.BusRead(addr + 1)
-		addr = uint16(hi)<<8 + uint16(lo)
+		indirectAddr := c.getImmediateValue() + c.X
+		lo := c.BusRead(uint16(indirectAddr))
+		hi := c.BusRead(uint16(indirectAddr + 1))
+		addr := uint16(hi)<<8 | uint16(lo)
 		return uint16(c.BusRead(addr))
 	case XIndexedZeroPageIndirect:
-		addr := uint16(c.getImmediateValue() + c.X)
-		lo := c.BusRead(addr)
-		hi := c.BusRead(addr + 1)
-		return uint16(hi)<<8 + uint16(lo)
+		indirectAddr := c.getImmediateValue() + c.X
+		lo := c.BusRead(uint16(indirectAddr))
+		hi := c.BusRead(uint16(indirectAddr + 1))
+		return uint16(hi)<<8 | uint16(lo)
 	case ZeroPageIndirectYIndexedValue:
 		value := c.getImmediateValue()
 		lo := c.BusRead(uint16(value))

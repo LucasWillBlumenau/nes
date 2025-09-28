@@ -13,11 +13,15 @@ import (
 )
 
 func main() {
+
 	f, err := os.Create("output.log")
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer f.Close()
+
 	log.SetOutput(f)
+	os.Stdout = f
 
 	path := readCliArgs()
 	fp, err := os.Open(path)
@@ -32,13 +36,15 @@ func main() {
 
 	joypadOne := joypad.New()
 	joypadTwo := joypad.New()
-	windowSize := window.WindowSize{Width: 256, Height: 240}
 
+	windowSize := window.WindowSize{Width: 256, Height: 240}
 	gameWindow := window.NewWindow(windowSize, joypadOne, joypadTwo)
+
 	ppu := ppu.NewPPU(cart.CharacterRom)
-	bus := bus.NewBus(ppu, cart, joypadOne)
+	bus := bus.NewBus(ppu, cart, joypadOne, joypadTwo)
 	cpu := cpu.NewCPU(bus)
 	cpu.SetRomEntrypoint()
+	// cpu.Pc = 0xC000
 
 	go gameWindow.Start()
 	go func() {
@@ -58,6 +64,7 @@ func main() {
 		}
 	}()
 	<-gameWindow.CloseChannel
+	// time.Sleep(time.Second * 1000)
 }
 
 func readCliArgs() string {
