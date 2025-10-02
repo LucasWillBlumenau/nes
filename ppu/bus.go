@@ -6,10 +6,17 @@ import (
 	"github.com/LucasWillBlumenau/nes/cartridge"
 )
 
-var nameTableMirrors = []uint16{
+var horizontalMirrors = []uint16{
 	0: 0,
 	1: 0,
 	2: 1,
+	3: 1,
+}
+
+var verticalMirrors = []uint16{
+	0: 0,
+	1: 1,
+	2: 0,
 	3: 1,
 }
 
@@ -64,11 +71,14 @@ func (b *PPUBus) getAddress(addr uint16) *uint8 {
 		return nil
 	}
 
-	// TODO: handle horizontal and vertical mirroring, for now it's assumed it is horizontal
 	isNameTableAddress := addr < 0x03F00
 	if isNameTableAddress {
+		mirrors := horizontalMirrors
+		if b.cart.UseVerticalMirroring {
+			mirrors = verticalMirrors
+		}
 		nameTableIndex := addr >> 10 & 0b11
-		nmTbl := nameTableMirrors[nameTableIndex]
+		nmTbl := mirrors[nameTableIndex]
 		addr = (nmTbl << 10) | (addr & 0b1111001111111111)
 		return &b.ram[addr-nameTableOffset]
 	}
