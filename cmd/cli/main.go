@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image/color"
 	"log"
 	"os"
 
@@ -21,15 +22,9 @@ func main() {
 	defer f.Close()
 
 	log.SetOutput(f)
-	os.Stdout = f
-
-	path := readCliArgs()
-	fp, err := os.Open(path)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	cart, err := cartridge.LoadCartridgeFromReader(fp)
+	// os.Stdout = f
+	romPath := readCliArgs()
+	cart, err := cartridge.LoadCartridge(romPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -37,14 +32,20 @@ func main() {
 	joypadOne := joypad.New()
 	joypadTwo := joypad.New()
 
+	imageChannel := make(chan []color.RGBA, 1)
 	windowSize := window.WindowSize{Width: 256, Height: 240}
-	gameWindow := window.NewWindow(windowSize, joypadOne, joypadTwo)
+	gameWindow := window.NewWindow(
+		windowSize,
+		joypadOne,
+		joypadTwo,
+		imageChannel,
+	)
 
-	ppu := ppu.NewPPU(cart.CharacterRom)
+	ppuBus := ppu.NewPPUBus(cart)
+	ppu := ppu.NewPPU(ppuBus, imageChannel)
 	bus := bus.NewBus(ppu, cart, joypadOne, joypadTwo)
 	cpu := cpu.NewCPU(bus)
 	cpu.SetRomEntrypoint()
-	// cpu.Pc = 0xC000
 
 	go gameWindow.Start()
 	go func() {
@@ -57,14 +58,10 @@ func main() {
 			for range ppuCycles {
 				ppu.RunStep()
 			}
-			if ppu.FrameDone() {
-				image := ppu.GetGeneratedImage()
-				gameWindow.UpdateImageBuffer(image)
-			}
+
 		}
 	}()
 	<-gameWindow.CloseChannel
-	// time.Sleep(time.Second * 1000)
 }
 
 func readCliArgs() string {

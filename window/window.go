@@ -31,7 +31,6 @@ func (s *WindowSize) Area() int {
 
 type Window struct {
 	CloseChannel   chan struct{}
-	imageBuffer    chan []color.RGBA
 	joypadOne      *joypad.Joypad
 	joypadOneState uint8
 	joypadTwo      *joypad.Joypad
@@ -40,20 +39,21 @@ type Window struct {
 	renderer       *sdl.Renderer
 	texture        *sdl.Texture
 	size           WindowSize
+	imageChannel   chan []color.RGBA
 }
 
 func NewWindow(
 	size WindowSize,
 	joypadOne *joypad.Joypad,
 	joypadTwo *joypad.Joypad,
+	imageChannel chan []color.RGBA,
 ) *Window {
-	imageBuffer := make(chan []color.RGBA, 120)
 	closeChannel := make(chan struct{})
 	return &Window{
-		imageBuffer:  imageBuffer,
 		CloseChannel: closeChannel,
 		joypadOne:    joypadOne,
 		joypadTwo:    joypadTwo,
+		imageChannel: imageChannel,
 		size:         size,
 	}
 }
@@ -64,10 +64,6 @@ func (w *Window) Width() int {
 
 func (w *Window) Height() int {
 	return w.size.Height
-}
-
-func (w *Window) UpdateImageBuffer(image []color.RGBA) {
-	w.imageBuffer <- image
 }
 
 func (w *Window) Start() {
@@ -94,6 +90,7 @@ func (w *Window) Start() {
 				w.joypadOneState |= w.readJoypadButton(event)
 			}
 		}
+
 		w.joypadOneState &= w.joypadOne.Write(w.joypadOneState)
 		keys := sdl.GetKeyboardState()
 		if keys[sdl.SCANCODE_ESCAPE] != 0 {
@@ -102,7 +99,7 @@ func (w *Window) Start() {
 		}
 
 		select {
-		case image := <-w.imageBuffer:
+		case image := <-w.imageChannel:
 			w.updateImage(image)
 			sdl.Delay(16)
 		default:

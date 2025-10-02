@@ -37,6 +37,9 @@ type CPU struct {
 	Pc          uint16
 	bus         *bus.Bus
 	extraCycles uint16
+	dmaOccuring bool
+	dmaPage     uint16
+	dmaFetches  uint16
 }
 
 func NewCPU(bus *bus.Bus) *CPU {
@@ -93,6 +96,16 @@ func (c *CPU) Run() (uint16, error) {
 		c.attendInterrupt(interrupt)
 		return 0, nil
 	}
+
+	if c.dmaOccuring {
+		addr := c.dmaPage | c.dmaFetches
+		value := c.BusRead(addr)
+		c.bus.OAMWrite(value)
+		c.dmaFetches++
+		c.dmaOccuring = c.dmaFetches < 256
+		return 2, nil
+	}
+
 	return c.executeInstruction()
 }
 
@@ -103,7 +116,6 @@ func (c *CPU) executeInstruction() (uint16, error) {
 		return 0, fmt.Errorf("%w: invalid opcode %02X", ErrInvalidInstruction, opcode)
 	}
 	c.Pc++
-	// fmt.Println(instruction.Stringfy(c))
 	value := c.fetchNextValue(instruction.AddressingMode)
 
 	instruction.Dispatch(c, value)
@@ -263,14 +275,9 @@ func (c *CPU) BusRead(addr uint16) uint8 {
 
 func (c *CPU) BusWrite(addr uint16, value uint8) {
 	dmaRequested := c.bus.Write(addr, value)
-	if !dmaRequested {
-		return
-	}
-	hi := uint16(value) << 8
-	for i := range uint16(256) {
-		addr := hi | i
-		value := c.bus.Read(addr)
-		c.bus.OAMWrite(value)
-		c.extraCycles += 2
+	if dmaRequested {
+		c.dmaOccuring = true
+		c.dmaFetches = 0
+		c.dmaPage = uint16(value) << 8
 	}
 }

@@ -3,6 +3,7 @@ package cartridge
 import (
 	"errors"
 	"io"
+	"os"
 )
 
 var ErrInvalidRomFile = errors.New("invalid rom file")
@@ -28,12 +29,16 @@ type Cartridge struct {
 	CharacterRom           []byte
 }
 
-func LoadCartridgeFromReader(r io.ReadCloser) (*Cartridge, error) {
-	defer r.Close()
+func LoadCartridge(filePath string) (*Cartridge, error) {
+	fp, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer fp.Close()
 
 	headers := make([]byte, headersSize)
 
-	n, err := r.Read(headers)
+	n, err := fp.Read(headers)
 	if err != nil {
 		return nil, err
 	}
@@ -60,14 +65,14 @@ func LoadCartridgeFromReader(r io.ReadCloser) (*Cartridge, error) {
 	var trainer []byte
 	if useTrainer {
 		trainer = make([]byte, 512)
-		_, err = r.Read(trainer)
+		_, err = fp.Read(trainer)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	programRom := make([]byte, programSize)
-	n, err = r.Read(programRom)
+	n, err = fp.Read(programRom)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +82,7 @@ func LoadCartridgeFromReader(r io.ReadCloser) (*Cartridge, error) {
 	}
 
 	characterRom := make([]byte, charactersSize)
-	n, err = r.Read(characterRom)
+	n, err = fp.Read(characterRom)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +92,7 @@ func LoadCartridgeFromReader(r io.ReadCloser) (*Cartridge, error) {
 	}
 
 	buf := make([]byte, 1)
-	_, err = r.Read(buf)
+	_, err = fp.Read(buf)
 	if !errors.Is(err, io.EOF) {
 		return nil, ErrInvalidRomFile
 	}

@@ -7,7 +7,7 @@ func Pha(cpu *CPU, _ uint16) {
 
 func Php(cpu *CPU, _ uint16) {
 	// fmt.Println("Executing instruction PHP...")
-	cpu.Push(cpu.P)
+	cpu.Push(cpu.P | 0b00110000) // TODO: serch status 4 e 5 bit behavior
 }
 
 func Pla(cpu *CPU, _ uint16) {
