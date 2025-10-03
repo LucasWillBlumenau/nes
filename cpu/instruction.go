@@ -288,6 +288,7 @@ var instructionMap = [256]Instruction{
 	0xC4: {Name: "CPY", Dispatch: Cpy, AddressingMode: ZeroPageValue, Cycles: 3},
 	// SBC
 	0xE9: {Name: "SBC", Dispatch: Sbc, AddressingMode: Immediate, Cycles: 2},
+	0xEB: {Name: "*SBC", Dispatch: Sbc, AddressingMode: Immediate, Cycles: 2},
 	0xED: {Name: "SBC", Dispatch: Sbc, AddressingMode: AbsoluteValue, Cycles: 4},
 	0xFD: {Name: "SBC", Dispatch: Sbc, AddressingMode: XIndexedAbsoluteValue, Cycles: 4},
 	0xF9: {Name: "SBC", Dispatch: Sbc, AddressingMode: YIndexedAbsoluteValue, Cycles: 4},
@@ -295,6 +296,14 @@ var instructionMap = [256]Instruction{
 	0xF5: {Name: "SBC", Dispatch: Sbc, AddressingMode: XIndexedZeroPageValue, Cycles: 4},
 	0xE1: {Name: "SBC", Dispatch: Sbc, AddressingMode: XIndexedZeroPageIndirectValue, Cycles: 6},
 	0xF1: {Name: "SBC", Dispatch: Sbc, AddressingMode: ZeroPageIndirectYIndexedValue, Cycles: 5},
+	// DCP
+	0xCF: {Name: "*DCP", Dispatch: Dcp, AddressingMode: Absolute, Cycles: 6},
+	0xDF: {Name: "*DCP", Dispatch: Dcp, AddressingMode: XIndexedAbsolute, Cycles: 7},
+	0xDB: {Name: "*DCP", Dispatch: Dcp, AddressingMode: YIndexedAbsolute, Cycles: 7},
+	0xC7: {Name: "*DCP", Dispatch: Dcp, AddressingMode: ZeroPage, Cycles: 5},
+	0xD7: {Name: "*DCP", Dispatch: Dcp, AddressingMode: XIndexedZeroPage, Cycles: 6},
+	0xC3: {Name: "*DCP", Dispatch: Dcp, AddressingMode: XIndexedZeroPageIndirect, Cycles: 8},
+	0xD3: {Name: "*DCP", Dispatch: Dcp, AddressingMode: ZeroPageIndirectYIndexed, Cycles: 8},
 	// DEC
 	0xCE: {Name: "DEC", Dispatch: Dec, AddressingMode: Absolute, Cycles: 6},
 	0xDE: {Name: "DEC", Dispatch: Dec, AddressingMode: XIndexedAbsolute, Cycles: 7},

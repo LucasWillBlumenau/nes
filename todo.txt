@@ -1,7 +1,4 @@
 Implement the following undocumented opcodes:
- - lax
- - sax
- - sbc
  - dcp
  - isc
  - slo

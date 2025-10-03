@@ -77,3 +77,14 @@ func Sbc(cpu *CPU, fetchedValue uint16) {
 	cpu.SetStatusFlag(StatusFlagOverflow, (!a && !m && s) || (a && m && !s))
 	cpu.A = sum
 }
+
+func Dcp(cpu *CPU, fetchedValue uint16) {
+	// fmt.Println("Executing instruction DCP...")
+	memoryValue := cpu.BusRead(fetchedValue) - 1
+	cpu.BusWrite(fetchedValue, memoryValue)
+	diff := cpu.A - memoryValue
+
+	cpu.SetStatusFlag(StatusFlagZero, diff == 0)
+	cpu.SetStatusFlag(StatusFlagNegative, (diff>>7) == 1)
+	cpu.SetStatusFlag(StatusFlagCarry, memoryValue <= cpu.A)
+}
