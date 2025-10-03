@@ -127,3 +127,21 @@ func Slo(cpu *CPU, fetchedValue uint16) {
 	cpu.SetStatusFlag(StatusFlagNegative, cpu.A>>7 == 1)
 	cpu.SetStatusFlag(StatusFlagZero, cpu.A == 0)
 }
+
+func Rla(cpu *CPU, fetchedValue uint16) {
+	value := cpu.BusRead(fetchedValue)
+	var currentCarry uint8 = 0
+	if cpu.GetStatusFlag(StatusFlagCarry) {
+		currentCarry = 1
+	}
+
+	newCarry := value>>7 == 1
+	value = value<<1 | currentCarry
+	cpu.SetStatusFlag(StatusFlagCarry, newCarry)
+
+	cpu.BusWrite(fetchedValue, value)
+
+	cpu.A &= value
+	cpu.SetStatusFlag(StatusFlagNegative, cpu.A>>7 == 1)
+	cpu.SetStatusFlag(StatusFlagZero, cpu.A == 0)
+}
