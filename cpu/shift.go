@@ -114,3 +114,16 @@ func RorAccumulator(cpu *CPU, fetchedValue uint16) {
 	cpu.SetStatusFlag(StatusFlagZero, result == 0)
 	cpu.SetStatusFlag(StatusFlagNegative, (result&0x80) != 0)
 }
+
+func Slo(cpu *CPU, fetchedValue uint16) {
+	value := cpu.BusRead(fetchedValue)
+	carry := value>>7 == 1
+	value = value << 1
+
+	cpu.SetStatusFlag(StatusFlagCarry, carry)
+	cpu.BusWrite(fetchedValue, value)
+
+	cpu.A |= value
+	cpu.SetStatusFlag(StatusFlagNegative, cpu.A>>7 == 1)
+	cpu.SetStatusFlag(StatusFlagZero, cpu.A == 0)
+}

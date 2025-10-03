@@ -1,5 +1,4 @@
 Implement the following undocumented opcodes:
- - isc
  - slo
  - rla
  - sre

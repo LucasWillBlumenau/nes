@@ -230,6 +230,14 @@ var instructionMap = [256]Instruction{
 	0x7E: {Name: "ROR", Dispatch: Ror, AddressingMode: XIndexedAbsolute, Cycles: 7},
 	0x66: {Name: "ROR", Dispatch: Ror, AddressingMode: ZeroPage, Cycles: 5},
 	0x76: {Name: "ROR", Dispatch: Ror, AddressingMode: XIndexedZeroPage, Cycles: 6},
+	// SLO
+	0x0F: {Name: "*SLO", Dispatch: Slo, AddressingMode: Absolute, Cycles: 6},
+	0x1F: {Name: "*SLO", Dispatch: Slo, AddressingMode: XIndexedAbsolute, Cycles: 7},
+	0x1B: {Name: "*SLO", Dispatch: Slo, AddressingMode: YIndexedAbsolute, Cycles: 7},
+	0x07: {Name: "*SLO", Dispatch: Slo, AddressingMode: ZeroPage, Cycles: 5},
+	0x17: {Name: "*SLO", Dispatch: Slo, AddressingMode: XIndexedZeroPage, Cycles: 6},
+	0x03: {Name: "*SLO", Dispatch: Slo, AddressingMode: XIndexedZeroPageIndirect, Cycles: 8},
+	0x13: {Name: "*SLO", Dispatch: Slo, AddressingMode: ZeroPageIndirectYIndexed, Cycles: 8},
 	// AND
 	0x29: {Name: "AND", Dispatch: And, AddressingMode: Immediate, Cycles: 2},
 	0x2D: {Name: "AND", Dispatch: And, AddressingMode: AbsoluteValue, Cycles: 4},
