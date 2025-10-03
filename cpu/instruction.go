@@ -304,6 +304,15 @@ var instructionMap = [256]Instruction{
 	0xD7: {Name: "*DCP", Dispatch: Dcp, AddressingMode: XIndexedZeroPage, Cycles: 6},
 	0xC3: {Name: "*DCP", Dispatch: Dcp, AddressingMode: XIndexedZeroPageIndirect, Cycles: 8},
 	0xD3: {Name: "*DCP", Dispatch: Dcp, AddressingMode: ZeroPageIndirectYIndexed, Cycles: 8},
+	// ISC
+	0xEF: {Name: "*ISB", Dispatch: Isc, AddressingMode: Absolute, Cycles: 6},
+	0xFF: {Name: "*ISB", Dispatch: Isc, AddressingMode: XIndexedAbsolute, Cycles: 7},
+	0xFB: {Name: "*ISB", Dispatch: Isc, AddressingMode: YIndexedAbsolute, Cycles: 7},
+	0xE7: {Name: "*ISB", Dispatch: Isc, AddressingMode: ZeroPage, Cycles: 5},
+	0xF7: {Name: "*ISB", Dispatch: Isc, AddressingMode: XIndexedZeroPage, Cycles: 6},
+	0xE3: {Name: "*ISB", Dispatch: Isc, AddressingMode: XIndexedZeroPageIndirect, Cycles: 8},
+	0xF3: {Name: "*ISB", Dispatch: Isc, AddressingMode: ZeroPageIndirectYIndexed, Cycles: 8},
+
 	// DEC
 	0xCE: {Name: "DEC", Dispatch: Dec, AddressingMode: Absolute, Cycles: 6},
 	0xDE: {Name: "DEC", Dispatch: Dec, AddressingMode: XIndexedAbsolute, Cycles: 7},

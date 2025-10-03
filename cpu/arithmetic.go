@@ -88,3 +88,27 @@ func Dcp(cpu *CPU, fetchedValue uint16) {
 	cpu.SetStatusFlag(StatusFlagNegative, (diff>>7) == 1)
 	cpu.SetStatusFlag(StatusFlagCarry, memoryValue <= cpu.A)
 }
+
+func Isc(cpu *CPU, fetchedValue uint16) {
+	memoryValue := cpu.BusRead(fetchedValue) + 1
+	cpu.BusWrite(fetchedValue, memoryValue)
+
+	var carryBit uint16
+	if cpu.GetStatusFlag(StatusFlagCarry) {
+		carryBit = 1
+	}
+
+	value := uint16(memoryValue) ^ 0xFF
+	sum16 := uint16(cpu.A) + value + carryBit
+	sum := uint8(sum16)
+
+	a := (cpu.A >> 7) == 1
+	s := (sum >> 7) == 1
+	m := (uint8(value) >> 7) == 1
+
+	cpu.SetStatusFlag(StatusFlagNegative, (sum>>7) == 1)
+	cpu.SetStatusFlag(StatusFlagZero, sum == 0)
+	cpu.SetStatusFlag(StatusFlagCarry, sum16 > 0xFF)
+	cpu.SetStatusFlag(StatusFlagOverflow, (!a && !m && s) || (a && m && !s))
+	cpu.A = sum
+}
