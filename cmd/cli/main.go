@@ -22,7 +22,7 @@ func main() {
 	defer f.Close()
 
 	log.SetOutput(f)
-	// os.Stdout = f
+	os.Stdout = f
 	romPath := readCliArgs()
 	cart, err := cartridge.LoadCartridge(romPath)
 	if err != nil {
@@ -46,6 +46,7 @@ func main() {
 	bus := bus.NewBus(ppu, cart, joypadOne, joypadTwo)
 	cpu := cpu.NewCPU(bus)
 	cpu.SetRomEntrypoint()
+	// cpu.Pc = 0xC000
 
 	go gameWindow.Start()
 	go func() {
@@ -62,6 +63,7 @@ func main() {
 		}
 	}()
 	<-gameWindow.CloseChannel
+	// time.Sleep(time.Second * 1000)
 }
 
 func readCliArgs() string {

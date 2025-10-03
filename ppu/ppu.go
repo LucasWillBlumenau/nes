@@ -109,6 +109,7 @@ type PPU struct {
 	currentAddr        vRegister
 	tempAddr           uint16
 	fineX              uint16
+	frameCount         uint64
 }
 
 func NewPPU(bus *PPUBus, imageChannel chan []color.RGBA) *PPU {
@@ -246,6 +247,7 @@ func (p *PPU) RunStep() {
 			p.fetchNextTile()
 		}
 	} else if p.renderingState.scanline == 240 && p.renderingState.clock == 0 {
+		p.frameCount++
 		p.imageChannel <- p.bufferedImage[:]
 		p.vBlank()
 		p.rendering = false

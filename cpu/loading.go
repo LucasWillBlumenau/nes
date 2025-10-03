@@ -24,6 +24,15 @@ func Ldy(cpu *CPU, fetchedValue uint16) {
 	cpu.SetStatusFlag(StatusFlagNegative, (cpu.Y>>7) == 1)
 }
 
+func Lax(cpu *CPU, fetchedValue uint16) {
+	// fmt.Println("Executing instruction LAX...")
+
+	cpu.A = uint8(fetchedValue)
+	cpu.X = uint8(fetchedValue)
+	cpu.SetStatusFlag(StatusFlagZero, cpu.A == 0)
+	cpu.SetStatusFlag(StatusFlagNegative, (cpu.A>>7) == 1)
+}
+
 func Sta(cpu *CPU, fetchedValue uint16) {
 	// fmt.Println("Executing instruction STA...")
 

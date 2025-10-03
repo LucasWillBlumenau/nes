@@ -116,6 +116,7 @@ func (c *CPU) executeInstruction() (uint16, error) {
 		return 0, fmt.Errorf("%w: invalid opcode %02X", ErrInvalidInstruction, opcode)
 	}
 	c.Pc++
+	fmt.Println(instruction.Stringfy(c))
 	value := c.fetchNextValue(instruction.AddressingMode)
 
 	instruction.Dispatch(c, value)
