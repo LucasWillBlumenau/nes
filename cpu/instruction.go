@@ -181,6 +181,11 @@ var instructionMap = [256]Instruction{
 	0x8C: {Name: "STY", Dispatch: Sty, AddressingMode: Absolute, Cycles: 4},
 	0x84: {Name: "STY", Dispatch: Sty, AddressingMode: ZeroPage, Cycles: 3},
 	0x94: {Name: "STY", Dispatch: Sty, AddressingMode: XIndexedZeroPage, Cycles: 4},
+	// SAX
+	0x8F: {Name: "*SAX", Dispatch: Sax, AddressingMode: Absolute, Cycles: 4},
+	0x87: {Name: "*SAX", Dispatch: Sax, AddressingMode: ZeroPage, Cycles: 3},
+	0x97: {Name: "*SAX", Dispatch: Sax, AddressingMode: YIndexedZeroPage, Cycles: 4},
+	0x83: {Name: "*SAX", Dispatch: Sax, AddressingMode: XIndexedZeroPageIndirect, Cycles: 6},
 	// TAX
 	0xAA: {Name: "TAX", Dispatch: Tax, AddressingMode: Implied, Cycles: 2},
 	// TAY

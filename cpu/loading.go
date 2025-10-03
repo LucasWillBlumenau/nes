@@ -50,3 +50,9 @@ func Sty(cpu *CPU, fetchedValue uint16) {
 
 	cpu.BusWrite(fetchedValue, cpu.Y)
 }
+
+func Sax(cpu *CPU, fetchedValue uint16) {
+	// fmt.Println("Executing instruction SAX...")
+	value := cpu.A & cpu.X
+	cpu.BusWrite(fetchedValue, value)
+}
