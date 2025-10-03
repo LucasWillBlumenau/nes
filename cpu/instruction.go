@@ -246,6 +246,22 @@ var instructionMap = [256]Instruction{
 	0x37: {Name: "*RLA", Dispatch: Rla, AddressingMode: XIndexedZeroPage, Cycles: 6},
 	0x23: {Name: "*RLA", Dispatch: Rla, AddressingMode: XIndexedZeroPageIndirect, Cycles: 8},
 	0x33: {Name: "*RLA", Dispatch: Rla, AddressingMode: ZeroPageIndirectYIndexed, Cycles: 8},
+	// SRE
+	0x4F: {Name: "*SRE", Dispatch: Sre, AddressingMode: Absolute, Cycles: 6},
+	0x5F: {Name: "*SRE", Dispatch: Sre, AddressingMode: XIndexedAbsolute, Cycles: 7},
+	0x5B: {Name: "*SRE", Dispatch: Sre, AddressingMode: YIndexedAbsolute, Cycles: 7},
+	0x47: {Name: "*SRE", Dispatch: Sre, AddressingMode: ZeroPage, Cycles: 5},
+	0x57: {Name: "*SRE", Dispatch: Sre, AddressingMode: XIndexedZeroPage, Cycles: 6},
+	0x43: {Name: "*SRE", Dispatch: Sre, AddressingMode: XIndexedZeroPageIndirect, Cycles: 8},
+	0x53: {Name: "*SRE", Dispatch: Sre, AddressingMode: ZeroPageIndirectYIndexed, Cycles: 8},
+	// RRA
+	0x6F: {Name: "*RRA", Dispatch: Rra, AddressingMode: Absolute, Cycles: 6},
+	0x7F: {Name: "*RRA", Dispatch: Rra, AddressingMode: XIndexedAbsolute, Cycles: 7},
+	0x7B: {Name: "*RRA", Dispatch: Rra, AddressingMode: YIndexedAbsolute, Cycles: 7},
+	0x67: {Name: "*RRA", Dispatch: Rra, AddressingMode: ZeroPage, Cycles: 5},
+	0x77: {Name: "*RRA", Dispatch: Rra, AddressingMode: XIndexedZeroPage, Cycles: 6},
+	0x63: {Name: "*RRA", Dispatch: Rra, AddressingMode: XIndexedZeroPageIndirect, Cycles: 8},
+	0x73: {Name: "*RRA", Dispatch: Rra, AddressingMode: ZeroPageIndirectYIndexed, Cycles: 8},
 	// AND
 	0x29: {Name: "AND", Dispatch: And, AddressingMode: Immediate, Cycles: 2},
 	0x2D: {Name: "AND", Dispatch: And, AddressingMode: AbsoluteValue, Cycles: 4},

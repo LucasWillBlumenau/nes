@@ -1,4 +1,0 @@
-Implement the following undocumented opcodes:
- - rla
- - sre
- - rra

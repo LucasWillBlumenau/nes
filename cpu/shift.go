@@ -145,3 +145,47 @@ func Rla(cpu *CPU, fetchedValue uint16) {
 	cpu.SetStatusFlag(StatusFlagNegative, cpu.A>>7 == 1)
 	cpu.SetStatusFlag(StatusFlagZero, cpu.A == 0)
 }
+
+func Sre(cpu *CPU, fetchedValue uint16) {
+	value := cpu.BusRead(fetchedValue)
+	carry := value&1 == 1
+	value = value >> 1
+
+	cpu.SetStatusFlag(StatusFlagCarry, carry)
+	cpu.BusWrite(fetchedValue, value)
+
+	cpu.A ^= value
+	cpu.SetStatusFlag(StatusFlagNegative, cpu.A>>7 == 1)
+	cpu.SetStatusFlag(StatusFlagZero, cpu.A == 0)
+}
+
+func Rra(cpu *CPU, fetchedValue uint16) {
+	value := cpu.BusRead(fetchedValue)
+	var currentCarry uint8 = 0
+	if cpu.GetStatusFlag(StatusFlagCarry) {
+		currentCarry = 1
+	}
+
+	newCarry := value&0b01 == 1
+	value = (value >> 1) | (currentCarry << 7)
+	cpu.SetStatusFlag(StatusFlagCarry, newCarry)
+	cpu.BusWrite(fetchedValue, value)
+
+	var carryBit uint16
+	if newCarry {
+		carryBit = 1
+	}
+
+	sum16 := uint16(cpu.A) + uint16(value) + carryBit
+	sum := uint8(sum16)
+
+	a := (cpu.A >> 7) == 1
+	s := (sum >> 7) == 1
+	m := (value >> 7) == 1
+
+	cpu.SetStatusFlag(StatusFlagNegative, (sum>>7) == 1)
+	cpu.SetStatusFlag(StatusFlagZero, sum == 0)
+	cpu.SetStatusFlag(StatusFlagCarry, sum16 > 0xFF)
+	cpu.SetStatusFlag(StatusFlagOverflow, (!a && !m && s) || (a && m && !s))
+	cpu.A = sum
+}
