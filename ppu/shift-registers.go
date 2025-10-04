@@ -19,3 +19,9 @@ func (p *pixelsShiftRegister) Unbuffer() color.RGBA {
 	p.start = (p.start + 1) & 0b1111
 	return p.buffer[currentIndex]
 }
+
+func (p *pixelsShiftRegister) DishMany(quantity uint16) {
+	for range quantity {
+		p.Unbuffer()
+	}
+}

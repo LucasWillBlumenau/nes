@@ -19,7 +19,7 @@ const (
 
 type ppuPorts struct {
 	control ppuControl
-	mask    uint8
+	mask    ppuMask
 	status  uint8
 }
 
@@ -147,7 +147,7 @@ func (p *PPU) WritePPUControlPort(value uint8) {
 }
 
 func (p *PPU) WritePPUMaskPort(value uint8) {
-	p.ports.mask = value
+	p.ports.mask.value = value
 }
 
 func (p *PPU) WriteOAMAddrPort(value uint8) {
@@ -219,9 +219,7 @@ func (p *PPU) handlePreRenderScanline() {
 	} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
 		p.fetchBackgroundTile()
 	} else if p.renderingState.clock == 337 {
-		for range p.fineX {
-			p.registers.pixelBuffer.Unbuffer()
-		}
+		p.registers.pixelBuffer.DishMany(p.fineX)
 	}
 }
 
@@ -274,6 +272,10 @@ func (p *PPU) incrementCycle() {
 }
 
 func (p *PPU) evaluateSprite() {
+	if !p.ports.mask.RenderingEnabled() {
+		return
+	}
+
 	switch p.renderingState.oamEvaluationState {
 	case evaluateOAMYPositionByteFirstCycle:
 		index := p.renderingState.oamSprite*4 + p.renderingState.oamSpriteByte
@@ -325,6 +327,10 @@ func (p *PPU) evaluateSprite() {
 }
 
 func (p *PPU) fetchSprite() {
+	if !p.ports.mask.RenderingEnabled() {
+		return
+	}
+
 	state := spriteFetchingStateByClock[p.renderingState.clock]
 	switch state {
 	case spriteFetchingStateFetchLowBitPlane:
@@ -357,7 +363,10 @@ func (p *PPU) addForegroundPixels() {
 	xPosition := int(p.secondaryOAM[p.renderingState.currentSpriteBeingFetched*4+3])
 	for i := range 8 {
 		index := xPosition + i
-		if index >= len(p.foreground) || p.foregroundFilled[index] {
+		isForegroundSpaceFilled := index >= len(p.foreground) ||
+			(p.foregroundFilled[index] &&
+				p.foreground[index] != p.bus.GetBackdropColor())
+		if isForegroundSpaceFilled {
 			break
 		}
 		shiftSize := i
@@ -379,6 +388,10 @@ func (p *PPU) appendSecondaryOAMData(data uint8) {
 }
 
 func (p *PPU) fetchBackgroundTile() {
+	if !p.ports.mask.RenderingEnabled() {
+		return
+	}
+
 	state := backgroundFetchingStateByClock[p.renderingState.clock]
 	switch state {
 	case bgFetchingStateFetchNametable:
@@ -400,6 +413,10 @@ func (p *PPU) fetchBackgroundTile() {
 }
 
 func (p *PPU) updateShiftRegisterWithFetchedData() {
+	if !p.ports.mask.BackgroundRenderingEnabled() {
+		return
+	}
+
 	for i := range 8 {
 		shift := 7 - i
 		hi := (p.renderingState.highBitPlane >> shift) & 0b01
@@ -416,11 +433,22 @@ func (p *PPU) appendPixel(pixel color.RGBA) {
 	foregroundPixel := p.foreground[pixelIndex]
 	p.foregroundFilled[pixelIndex] = false
 
+	if !p.ports.mask.RenderingEnabled() {
+		p.bufferedImage[p.currentPixel] = p.bus.GetBackdropColor()
+		p.currentPixel++
+		return
+	}
+
 	bgIsTransparent := pixel == p.bus.GetBackdropColor()
 	spriteIsTransparent := foregroundPixel == p.bus.GetBackdropColor()
+	spriteRenderingEnabled := p.ports.mask.SpriteRenderingEnabled()
 	spriteHasPriority := p.foregroundPriority[pixelIndex]
 
-	if !spriteIsTransparent && (bgIsTransparent || spriteHasPriority) {
+	drawSprite := spriteRenderingEnabled &&
+		!spriteIsTransparent &&
+		(bgIsTransparent || spriteHasPriority)
+
+	if drawSprite {
 		p.bufferedImage[p.currentPixel] = foregroundPixel
 		p.foreground[pixelIndex] = defaultColor
 	} else {

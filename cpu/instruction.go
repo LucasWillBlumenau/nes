@@ -310,7 +310,7 @@ var instructionMap = [256]Instruction{
 	// INY
 	0xC8: {Name: "INY", Dispatch: Iny, AddressingMode: Implied, Cycles: 2},
 	// BRK
-	0x00: {Name: "BRK", Dispatch: Brk, AddressingMode: Implied, Cycles: 7}, // TODO: check clock logic implementation for this instruction later
+	0x00: {Name: "BRK", Dispatch: Brk, AddressingMode: Implied, Cycles: 0},
 	// JMP
 	0x4C: {Name: "JMP", Dispatch: Jmp, AddressingMode: Absolute, Cycles: 3},
 	0x6C: {Name: "JMP", Dispatch: Jmp, AddressingMode: AbsoluteIndirect, Cycles: 5},

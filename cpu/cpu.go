@@ -100,8 +100,8 @@ func (c *CPU) Run() (uint16, error) {
 	c.extraCycles = 0
 	if interrupt, ok := interrupt.InterruptSignal.Read(); ok {
 		c.attendInterrupt(interrupt)
-		c.elapsedCycles += 8
-		return 8, nil
+		c.elapsedCycles += 7
+		return 7, nil
 	}
 
 	if c.dmaOccuring {

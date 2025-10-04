@@ -1,24 +1,11 @@
 package cpu
 
-// TODO: abstract Brk interrupt functionally in cpu.attendInterrupt function
+import "github.com/LucasWillBlumenau/nes/interrupt"
+
 func Brk(cpu *CPU, fetchedValue uint16) {
 	// fmt.Println("Executing instruction BRK...")
-
-	programCounter := cpu.Pc + 1
-
-	hi := uint8(programCounter >> 8)
-	lo := uint8(programCounter & 0x00FF)
-
-	cpu.Push(hi)
-	cpu.Push(lo)
-	cpu.Push(cpu.P)
-
-	cpu.SetStatusFlag(StatusFlagInterruptDisable, true)
-
-	lo = cpu.BusRead(irqLowByteAddress)
-	hi = cpu.BusRead(irqHighByteAddress)
-
-	cpu.Pc = (uint16(hi) << 8) | uint16(lo)
+	cpu.Pc++
+	interrupt.InterruptSignal.Send(interrupt.Irq)
 }
 
 func Jmp(cpu *CPU, fetchedValue uint16) {
