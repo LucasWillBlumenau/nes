@@ -9,7 +9,8 @@ class Instruction:
     y: int
     a: int
     sp: int
-    p: int 
+    p: int
+    clock: int
 
     def __eq__(self, other) -> None:
         return (
@@ -21,6 +22,7 @@ class Instruction:
             and self.a == other.a
             and self.sp == other.sp
             and self.p == other.p
+            and self.clock == other.clock
         )
 
 
@@ -32,9 +34,27 @@ def main() -> None:
     for i in range(mix_size):
         output = parse_output_line(output_lines[i].strip())
         nestest = parse_nestest_line(nestest_lines[i].strip())
+        if output == nestest:
+            continue
 
-        if output != nestest:
-            print(f"Problem in line {i + 1}")
+        print(f"Problem in line {i + 1}")
+        if output.name != nestest.name:
+            print(f"output name: {output.name}, nestest name: {nestest.name} ")
+        if output.address != nestest.address:
+            print(f"output address: {output.address}, nestest address: {nestest.address} ")
+        if output.x != nestest.x:
+            print(f"output x: {output.x}, nestest x: {nestest.x} ")
+        if output.y != nestest.y:
+            print(f"output y: {output.y}, nestest y: {nestest.y} ")
+        if output.a != nestest.a:
+            print(f"output a: {output.a}, nestest a: {nestest.a} ")
+        if output.sp != nestest.sp:
+            print(f"output sp: {output.sp}, nestest sp: {nestest.sp} ")
+        if output.p != nestest.p:
+            print(f"output p: {output.p}, nestest p: {nestest.p} ")
+        if output.clock != nestest.clock:
+            print(f"output clock: {output.clock}, nestest clock: {nestest.clock} ")
+        break
 
 
 
@@ -46,7 +66,7 @@ def read_file(path: str) -> str:
 def parse_nestest_line(line: str) -> Instruction:  
     parts = line.split()
     i = 0
-    
+
     address = int(parts[i], 16)
     i += 1
 
@@ -72,7 +92,8 @@ def parse_nestest_line(line: str) -> Instruction:
     i += 1
 
     sp = int(parts[i].removeprefix('SP:'), 16)
-    i += 1
+
+    clock = int(parts[i:][-1].removeprefix('CYC:'))
 
     return Instruction(
         name=name,
@@ -82,6 +103,7 @@ def parse_nestest_line(line: str) -> Instruction:
         a=a,
         sp=sp,
         p=p,
+        clock=clock,
     )
 
 
@@ -103,9 +125,6 @@ def is_hex_char(char: str) -> bool:
 def parse_output_line(line: str) -> Instruction:
     parts = [p.strip() for p in line.split()]
     i = 0
-    address = int(parts[i], 16)
-    i += 1
-
     name = parts[i].upper().strip()
     i += 1
 
@@ -113,15 +132,19 @@ def parse_output_line(line: str) -> Instruction:
         i += 1
     i += 1
 
-    a = int(parts[i].removeprefix("$").removesuffix(','), 16)
+    a = int(parts[i].removesuffix(','), 16)
     i += 2
-    x = int(parts[i].removeprefix("$").removesuffix(','), 16)
+    x = int(parts[i].removesuffix(','), 16)
     i += 2
-    y = int(parts[i].removeprefix("$").removesuffix(','), 16)
+    y = int(parts[i].removesuffix(','), 16)
     i += 2
-    p = int(parts[i].removeprefix("$").removesuffix(','), 16)
+    p = int(parts[i].removesuffix(','), 16)
     i += 2
-    sp = int(parts[i].removeprefix("$01").removesuffix(','), 16)
+    sp = int(parts[i].removesuffix(','), 16)
+    i += 2
+    address = int(parts[i].removesuffix(','), 16)
+    i += 2
+    clock = int(parts[i])
 
     return Instruction(
         name=name,
@@ -131,6 +154,7 @@ def parse_output_line(line: str) -> Instruction:
         y=y,
         p=p,
         sp=sp,
+        clock=clock,
     )
 
 

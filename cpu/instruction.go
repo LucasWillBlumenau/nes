@@ -1,9 +1,5 @@
 package cpu
 
-import (
-	"fmt"
-)
-
 type AddressingMode uint8
 
 const (
@@ -83,56 +79,6 @@ type Instruction struct {
 	AddressingMode AddressingMode
 	Dispatch       func(*CPU, uint16)
 	Cycles         uint16
-}
-
-func (i *Instruction) Stringfy(cpu *CPU) string {
-	firstOperand := cpu.BusRead(cpu.Pc)
-	secondOperand := cpu.BusRead(cpu.Pc + 1)
-	var instruction = ""
-
-	switch i.AddressingMode {
-	case ZeroPage, ZeroPageValue:
-		instruction = fmt.Sprintf("%s $%02X", i.Name, firstOperand)
-	case XIndexedZeroPage, XIndexedZeroPageValue:
-		instruction = fmt.Sprintf("%s $%02X, X", i.Name, firstOperand)
-	case YIndexedZeroPage, YIndexedZeroPageValue:
-		instruction = fmt.Sprintf("%s $%02X, Y", i.Name, firstOperand)
-	case Absolute, AbsoluteValue:
-		instruction = fmt.Sprintf("%s $%02X%02X", i.Name, secondOperand, firstOperand)
-	case Relative:
-		instruction = fmt.Sprintf("%s $%04X", i.Name, int(cpu.Pc-1)+int(firstOperand)+2)
-	case XIndexedAbsolute, XIndexedAbsoluteValue:
-		instruction = fmt.Sprintf("%s $%02X%02X, X", i.Name, secondOperand, firstOperand)
-	case YIndexedAbsolute, YIndexedAbsoluteValue:
-		instruction = fmt.Sprintf("%s $%02X%02X, Y", i.Name, secondOperand, firstOperand)
-	case AbsoluteIndirect:
-		instruction = fmt.Sprintf("%s ($%02X%02X)", i.Name, secondOperand, firstOperand)
-	case Implied:
-		instruction = i.Name
-	case Accumulator:
-		instruction = fmt.Sprintf("%s A", i.Name)
-	case Immediate:
-		instruction = fmt.Sprintf("%s #$%02X", i.Name, firstOperand)
-	case XIndexedZeroPageIndirect, XIndexedZeroPageIndirectValue:
-		instruction = fmt.Sprintf("%s ($%02X%02X, X)", i.Name, secondOperand, firstOperand)
-	case ZeroPageIndirectYIndexed, ZeroPageIndirectYIndexedValue:
-		instruction = fmt.Sprintf("%s ($%02X%02X), Y", i.Name, secondOperand, firstOperand)
-	default:
-		instruction = "XXX"
-	}
-
-	return fmt.Sprintf(
-		"%04X %-15s A: $%02X, X: $%02X, Y: $%02X, P: $%02x, SP: $01%02X, AM: %s",
-		cpu.Pc-1,
-		instruction,
-		cpu.A,
-		cpu.X,
-		cpu.Y,
-		cpu.P,
-		cpu.Sp,
-		i.AddressingMode.String(),
-	)
-
 }
 
 var instructionMap = [256]Instruction{
@@ -418,12 +364,12 @@ var instructionMap = [256]Instruction{
 	0xC2: {Name: "*NOP", Dispatch: Nop, AddressingMode: Immediate, Cycles: 2},
 	0xE2: {Name: "*NOP", Dispatch: Nop, AddressingMode: Immediate, Cycles: 2},
 	0x0C: {Name: "*NOP", Dispatch: Nop, AddressingMode: Absolute, Cycles: 4},
-	0x1C: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsolute, Cycles: 4},
-	0x3C: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsolute, Cycles: 4},
-	0x5C: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsolute, Cycles: 4},
-	0x7C: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsolute, Cycles: 4},
-	0xDC: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsolute, Cycles: 4},
-	0xFC: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsolute, Cycles: 4},
+	0x1C: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsoluteValue, Cycles: 4},
+	0x3C: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsoluteValue, Cycles: 4},
+	0x5C: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsoluteValue, Cycles: 4},
+	0x7C: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsoluteValue, Cycles: 4},
+	0xDC: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsoluteValue, Cycles: 4},
+	0xFC: {Name: "*NOP", Dispatch: Nop, AddressingMode: XIndexedAbsoluteValue, Cycles: 4},
 	0x04: {Name: "*NOP", Dispatch: Nop, AddressingMode: ZeroPage, Cycles: 3},
 	0x44: {Name: "*NOP", Dispatch: Nop, AddressingMode: ZeroPage, Cycles: 3},
 	0x64: {Name: "*NOP", Dispatch: Nop, AddressingMode: ZeroPage, Cycles: 3},

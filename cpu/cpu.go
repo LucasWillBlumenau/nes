@@ -29,17 +29,22 @@ const (
 )
 
 type CPU struct {
-	A           uint8
-	X           uint8
-	Y           uint8
-	P           uint8
-	Sp          uint8
-	Pc          uint16
-	bus         *bus.Bus
-	extraCycles uint16
-	dmaOccuring bool
-	dmaPage     uint16
-	dmaFetches  uint16
+	A                uint8
+	X                uint8
+	Y                uint8
+	P                uint8
+	Sp               uint8
+	Pc               uint16
+	elapsedCycles    uint64
+	bus              *bus.Bus
+	extraCycles      uint16
+	dmaOccuring      bool
+	dmaPage          uint16
+	dmaFetches       uint16
+	lastInstruction  *Instruction
+	firstOperand     uint8
+	secondOperand    uint8
+	instructionCount uint16
 }
 
 func NewCPU(bus *bus.Bus) *CPU {
@@ -52,13 +57,6 @@ func NewCPU(bus *bus.Bus) *CPU {
 		Pc:  0,
 		bus: bus,
 	}
-}
-
-func (c *CPU) SetRomEntrypoint() {
-	lo := c.bus.Read(resetLowByteAddress)
-	hi := c.bus.Read(resetHighByteAddress)
-	romEntryPoint := uint16(hi)<<8 | uint16(lo)
-	c.Pc = romEntryPoint
 }
 
 func (c *CPU) GetStatusFlag(flag StatusFlag) bool {
@@ -90,11 +88,20 @@ func (c *CPU) ElapseCycle() {
 	c.extraCycles++
 }
 
+func (c *CPU) ElapsedCycles() uint64 {
+	return c.elapsedCycles
+}
+
+func (c *CPU) Reset() {
+	interrupt.InterruptSignal.Send(interrupt.Reset)
+}
+
 func (c *CPU) Run() (uint16, error) {
 	c.extraCycles = 0
 	if interrupt, ok := interrupt.InterruptSignal.Read(); ok {
 		c.attendInterrupt(interrupt)
-		return 0, nil
+		c.elapsedCycles += 8
+		return 8, nil
 	}
 
 	if c.dmaOccuring {
@@ -103,27 +110,48 @@ func (c *CPU) Run() (uint16, error) {
 		c.bus.OAMWrite(value)
 		c.dmaFetches++
 		c.dmaOccuring = c.dmaFetches < 256
+		c.elapsedCycles += 2
 		return 2, nil
 	}
 
-	return c.executeInstruction()
+	cyclesTaken, err := c.executeInstruction()
+	if err != nil {
+		return 0, err
+	}
+	c.elapsedCycles += uint64(cyclesTaken)
+	return cyclesTaken, err
 }
 
 func (c *CPU) executeInstruction() (uint16, error) {
+	c.firstOperand = 0
+	c.secondOperand = 0
 	opcode := c.BusRead(c.Pc)
 	instruction := instructionMap[opcode]
 	if instruction.Dispatch == nil {
 		return 0, fmt.Errorf("%w: invalid opcode %02X", ErrInvalidInstruction, opcode)
 	}
 	c.Pc++
-	fmt.Println(instruction.Stringfy(c))
+	c.lastInstruction = &instruction
 	value := c.fetchNextValue(instruction.AddressingMode)
 
 	instruction.Dispatch(c, value)
+	c.instructionCount++
 	return instruction.Cycles + c.extraCycles, nil
 }
 
 func (c *CPU) attendInterrupt(interruptValue interrupt.Interrupt) {
+	if interruptValue == interrupt.Reset {
+		lo := c.BusRead(resetLowByteAddress)
+		hi := c.BusRead(resetHighByteAddress)
+		c.A = 0
+		c.X = 0
+		c.Y = 0
+		c.P = 0b00100100
+		c.Sp = 0xFD
+		c.Pc = uint16(hi)<<8 + uint16(lo)
+		return
+	}
+
 	hi := uint8(c.Pc >> 8)
 	lo := uint8(c.Pc & 0x00FF)
 
@@ -132,16 +160,16 @@ func (c *CPU) attendInterrupt(interruptValue interrupt.Interrupt) {
 	c.Push(c.P)
 	c.SetStatusFlag(StatusFlagInterruptDisable, true)
 
-	var intHandlerLo, intHandlerHi uint8
+	var interruptHandlerLowAddrPar, interruptHandlerHighAddrPart uint8
 	switch interruptValue {
 	case interrupt.NonMaskableInterrupt:
-		intHandlerLo = c.BusRead(nmiLowByteAddress)
-		intHandlerHi = c.BusRead(nmiHighByteAddress)
+		interruptHandlerLowAddrPar = c.BusRead(nmiLowByteAddress)
+		interruptHandlerHighAddrPart = c.BusRead(nmiHighByteAddress)
 	case interrupt.Irq:
-		intHandlerLo = c.BusRead(irqLowByteAddress)
-		intHandlerHi = c.BusRead(irqHighByteAddress)
+		interruptHandlerLowAddrPar = c.BusRead(irqLowByteAddress)
+		interruptHandlerHighAddrPart = c.BusRead(irqHighByteAddress)
 	}
-	c.Pc = uint16(intHandlerHi)<<8 + uint16(intHandlerLo)
+	c.Pc = uint16(interruptHandlerHighAddrPart)<<8 + uint16(interruptHandlerLowAddrPar)
 }
 
 func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
@@ -160,11 +188,7 @@ func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
 		return uint16(c.BusRead(addr))
 	case XIndexedAbsolute:
 		addr := c.getAbsoluteAddress()
-		addrPage := addr & 0xFF00
 		addr = addr + uint16(c.X)
-		if addrPage != (addr & 0xFF00) {
-			c.extraCycles++
-		}
 		return addr
 	case YIndexedAbsoluteValue:
 		addr := c.getAbsoluteAddress()
@@ -176,11 +200,7 @@ func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
 		return uint16(c.BusRead(addr))
 	case YIndexedAbsolute:
 		addr := c.getAbsoluteAddress()
-		addrPage := addr & 0xFF00
 		addr = addr + uint16(c.Y)
-		if addrPage != (addr & 0xFF00) {
-			c.extraCycles++
-		}
 		return addr
 	case AbsoluteIndirect:
 		loAddr := c.getAbsoluteAddress()
@@ -212,12 +232,12 @@ func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
 	case YIndexedZeroPage:
 		return uint16(c.getImmediateValue() + c.Y)
 	case Relative:
-		offset := int8(c.BusRead(c.Pc))
+		offset := c.BusRead(c.Pc)
+		c.firstOperand = uint8(offset)
 		c.Pc++
-		nextAddr := uint16(int16(c.Pc) + int16(offset))
-		if (nextAddr & 0xFF00) != (c.Pc & 0xFF00) {
-			c.extraCycles++
-		}
+		positivePart := uint16(offset & 0b01111111)
+		negativePart := uint16(offset & 0b10000000)
+		nextAddr := c.Pc + positivePart - negativePart
 		return nextAddr
 	case XIndexedZeroPageIndirectValue:
 		indirectAddr := c.getImmediateValue() + c.X
@@ -245,12 +265,7 @@ func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
 		value := c.getImmediateValue()
 		lo := c.BusRead(uint16(value))
 		hi := c.BusRead(uint16(value + 1))
-		baseAddr := (uint16(hi) << 8) + uint16(lo)
-		baseAddrPage := baseAddr & 0xFF00
 		addr := (uint16(hi) << 8) + uint16(lo) + uint16(c.Y)
-		if (addr & 0xFF00) != baseAddrPage {
-			c.extraCycles++
-		}
 		return addr
 	}
 	panic("should never get here")
@@ -259,14 +274,17 @@ func (c *CPU) fetchNextValue(addressingMode AddressingMode) uint16 {
 func (c *CPU) getImmediateValue() uint8 {
 	value := c.BusRead(c.Pc)
 	c.Pc++
+	c.firstOperand = value
 	return value
 }
 
 func (c *CPU) getAbsoluteAddress() uint16 {
 	lo := c.BusRead(c.Pc)
 	c.Pc++
+	c.firstOperand = lo
 	hi := c.BusRead(c.Pc)
 	c.Pc++
+	c.secondOperand = hi
 	return uint16(hi)<<8 + uint16(lo)
 }
 
@@ -281,4 +299,59 @@ func (c *CPU) BusWrite(addr uint16, value uint8) {
 		c.dmaFetches = 0
 		c.dmaPage = uint16(value) << 8
 	}
+}
+
+func (c *CPU) State() string {
+	return fmt.Sprintf(
+		"A: %02x, X: %02x, Y: %02x, P: %02x, SP: %02x, PC: %04x",
+		c.A,
+		c.X,
+		c.Y,
+		c.P,
+		c.Sp,
+		c.Pc,
+	)
+}
+
+func (c *CPU) GetLastInstruction() string {
+	if c.lastInstruction == nil {
+		return ""
+	}
+	return c.formatInstrucitionAsAsm(c.lastInstruction)
+}
+
+func (c *CPU) formatInstrucitionAsAsm(instruction *Instruction) string {
+	var asm string
+	switch instruction.AddressingMode {
+	case ZeroPage, ZeroPageValue:
+		asm = fmt.Sprintf("%s $%02X", instruction.Name, c.firstOperand)
+	case XIndexedZeroPage, XIndexedZeroPageValue:
+		asm = fmt.Sprintf("%s $%02X, X", instruction.Name, c.firstOperand)
+	case YIndexedZeroPage, YIndexedZeroPageValue:
+		asm = fmt.Sprintf("%s $%02X, Y", instruction.Name, c.firstOperand)
+	case Absolute, AbsoluteValue:
+		asm = fmt.Sprintf("%s $%02X%02X", instruction.Name, c.secondOperand, c.firstOperand)
+	case Relative:
+		addr := int(c.Pc-2) + int(c.firstOperand) + 2
+		asm = fmt.Sprintf("%s $%04X", instruction.Name, addr)
+	case XIndexedAbsolute, XIndexedAbsoluteValue:
+		asm = fmt.Sprintf("%s $%02X%02X, X", instruction.Name, c.secondOperand, c.firstOperand)
+	case YIndexedAbsolute, YIndexedAbsoluteValue:
+		asm = fmt.Sprintf("%s $%02X%02X, Y", instruction.Name, c.secondOperand, c.firstOperand)
+	case AbsoluteIndirect:
+		asm = fmt.Sprintf("%s ($%02X%02X)", instruction.Name, c.secondOperand, c.firstOperand)
+	case Implied:
+		asm = instruction.Name
+	case Accumulator:
+		asm = fmt.Sprintf("%s A", instruction.Name)
+	case Immediate:
+		asm = fmt.Sprintf("%s #$%02X", instruction.Name, c.firstOperand)
+	case XIndexedZeroPageIndirect, XIndexedZeroPageIndirectValue:
+		asm = fmt.Sprintf("%s ($%02X%02X, X)", instruction.Name, c.secondOperand, c.firstOperand)
+	case ZeroPageIndirectYIndexed, ZeroPageIndirectYIndexedValue:
+		asm = fmt.Sprintf("%s ($%02X), Y", instruction.Name, c.firstOperand)
+	default:
+		panic("invalid addressing mode")
+	}
+	return asm
 }
