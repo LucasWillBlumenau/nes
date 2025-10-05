@@ -1,7 +1,6 @@
 package ppu
 
 import (
-	"fmt"
 	"image/color"
 
 	"github.com/LucasWillBlumenau/nes/interrupt"
@@ -11,7 +10,8 @@ const (
 	tileSize           uint16 = 16
 	highBitPlaneOffset uint16 = 8
 
-	setStatusVBlank         uint8 = 0b10000000
+	setStatusVBlank uint8 = 0b10000000
+	setSprite0HitFlag
 	setSpriteOverflowFlag   uint8 = 0b00100000
 	resetStatusVBlank       uint8 = 0b01111111
 	resetSprite0HitFlag     uint8 = 0b10111111
@@ -71,6 +71,13 @@ const (
 	evaluateOAMXPositionSecondCycle
 )
 
+type foreground struct {
+	pixels   [256]color.RGBA
+	priority [256]bool
+	filled   [256]bool
+	tileIds  [256]int16
+}
+
 type ppuRenderingState struct {
 	scanline           uint16
 	clock              uint16
@@ -85,37 +92,36 @@ type ppuRenderingState struct {
 }
 
 type PPU struct {
-	bus                *PPUBus
-	bufferedImage      [256 * 240]color.RGBA
-	oam                [64][4]uint8
-	secondaryOAM       [8][4]uint8
-	foreground         [256]color.RGBA
-	foregroundPriority [256]bool
-	foregroundFilled   [256]bool
-	secondaryOAMIndex  int
-	rendering          bool
-	ports              ppuPorts
-	renderingState     ppuRenderingState
-	registers          ppuRegisters
-	imageChannel       chan []color.RGBA
-	currentAddr        vRegister
-	tempAddr           uint16
-	fineX              uint8
-	frameCount         uint64
-	cycles             uint64
-	cleanVBlank        bool
-	oddFrame           bool
+	bus               *PPUBus
+	bufferedImage     [256 * 240]color.RGBA
+	oam               [64][4]uint8
+	secondaryOAM      [8][4]uint8
+	secondaryTileIds  [8]uint8
+	foreground        foreground
+	secondaryOAMIndex int
+	rendering         bool
+	ports             ppuPorts
+	renderingState    ppuRenderingState
+	registers         ppuRegisters
+	imageChannel      chan []color.RGBA
+	currentAddr       vRegister
+	tempAddr          uint16
+	fineX             uint8
+	frameCount        uint64
+	cycles            uint64
+	cleanVBlank       bool
+	oddFrame          bool
 }
 
 func NewPPU(bus *PPUBus, imageChannel chan []color.RGBA) *PPU {
-	return &PPU{
-		bus: bus,
-		registers: ppuRegisters{
-			writeLatch:   false,
-			bufferedData: 0x00,
-		},
+	ppu := &PPU{
+		bus:          bus,
 		imageChannel: imageChannel,
 	}
+	for i := range ppu.foreground.tileIds {
+		ppu.foreground.tileIds[i] = -1
+	}
+	return ppu
 }
 
 func (p *PPU) ReadStatusPort() uint8 {
@@ -134,10 +140,13 @@ func (p *PPU) ReadOAMDataPort() uint8 {
 
 func (p *PPU) ReadVRamDataPort() uint8 {
 	data := p.registers.bufferedData
-	p.registers.bufferedData = p.bus.read(p.currentAddr.Value())
-	if p.currentAddr.Value() >= 0x3F00 && p.currentAddr.Value() < 0x4000 {
+	addr := p.currentAddr.Value()
+	p.registers.bufferedData = p.bus.read(addr)
+	currentAddrPointsToPaletteData := addr >= 0x3F00 && addr < 0x4000
+	if currentAddrPointsToPaletteData {
 		data = p.registers.bufferedData
 	}
+	p.currentAddr.SetValue(p.currentAddr.Value() + p.ports.control.incrementSize)
 	return data
 }
 
@@ -209,13 +218,12 @@ func (p *PPU) runStep() {
 		p.handlePreRenderScanline()
 	} else if p.renderingState.scanline < 240 {
 		p.handleVisibleScanline()
-	} else if p.renderingState.scanline == 240 && p.renderingState.clock == 0 {
-		p.rendering = false
 	} else if p.renderingState.scanline == 241 && p.renderingState.clock == 1 {
 		if !p.cleanVBlank {
 			p.ports.status |= setStatusVBlank
 		}
 		p.vBlank()
+		p.rendering = false
 	}
 }
 
@@ -227,7 +235,6 @@ func (p *PPU) handlePreRenderScanline() {
 		p.frameCount++
 		p.imageChannel <- p.bufferedImage[:]
 		p.rendering = true
-		p.printOAM()
 	} else if p.renderingState.clock == 257 && p.ports.mask.RenderingEnabled() {
 		p.currentAddr.SetHorizontalBits(p.tempAddr)
 	} else if p.renderingState.clock >= 280 && p.renderingState.clock < 305 && p.ports.mask.RenderingEnabled() {
@@ -235,13 +242,6 @@ func (p *PPU) handlePreRenderScanline() {
 	} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
 		p.fetchBackgroundTile()
 	}
-}
-
-func (p *PPU) printOAM() {
-	for _, oam := range p.oam {
-		fmt.Printf("%02x %02x %02x %02x ", oam[0], oam[1], oam[2], oam[3])
-	}
-	fmt.Println()
 }
 
 func (p *PPU) handleVisibleScanline() {
@@ -261,17 +261,19 @@ func (p *PPU) handleVisibleScanline() {
 			spriteByte := index & 0b11
 			p.secondaryOAM[spriteIndex][spriteByte] = 0xFF
 		} else {
-			if p.renderingState.clock == 256 && p.ports.mask.RenderingEnabled() {
-				p.currentAddr.IncrementY()
+			if p.ports.mask.RenderingEnabled() {
+				if p.renderingState.clock == 256 {
+					p.currentAddr.IncrementY()
+				}
+				p.evaluateSprite()
 			}
-			p.evaluateSprite()
 		}
 	} else if p.renderingState.clock < 321 {
 		if p.renderingState.clock == 257 && p.ports.mask.RenderingEnabled() {
 			p.currentAddr.SetHorizontalBits(p.tempAddr)
 		}
 		isDoneFetchingSprites := p.secondaryOAMIndex < p.renderingState.currentSpriteIndex
-		if !isDoneFetchingSprites {
+		if !isDoneFetchingSprites && p.ports.mask.RenderingEnabled() {
 			p.fetchSprite()
 		}
 	} else if p.renderingState.clock < 337 {
@@ -292,7 +294,6 @@ func (p *PPU) incrementCycle() {
 
 	if p.renderingState.clock < 341 {
 		return
-
 	}
 
 	p.renderingState.clock = 0
@@ -310,21 +311,25 @@ func (p *PPU) evaluateSprite() {
 		p.renderingState.oamData = p.oam[p.renderingState.oamSprite]
 		p.renderingState.oamEvaluationState = evaluateOAMYPositionByteSecondCycle
 	case evaluateOAMYPositionByteSecondCycle:
-		if p.secondaryOAMIndex == len(p.secondaryOAM) {
-			p.ports.status |= setSpriteOverflowFlag
-			return
-		}
 		start := p.renderingState.oamData[spriteYPosition]
 		end := start + 8
 		nextScanline := uint8(p.renderingState.scanline) + 1
 		spriteInScanline := nextScanline >= start && nextScanline < end
-		if spriteInScanline {
+
+		if !spriteInScanline {
+			p.renderingState.oamSprite = (p.renderingState.oamSprite + 1) & 0b111111
+			p.renderingState.oamEvaluationState = evaluateOAMYPositionByteFirstCycle
+			return
+		}
+
+		p.ports.status |= setSpriteOverflowFlag
+		if p.secondaryOAMIndex < len(p.secondaryOAM) {
 			p.appendSecondaryOAMData(p.renderingState.oamData)
 			p.renderingState.oamEvaluationState = evaluateOAMTileIndexFirstCycle
 		} else {
-			p.renderingState.oamSprite = (p.renderingState.oamSprite + 1) & 0b111111
-			p.renderingState.oamEvaluationState = evaluateOAMYPositionByteFirstCycle
+			p.ports.status |= setSpriteOverflowFlag
 		}
+
 	case evaluateOAMTileIndexFirstCycle:
 		p.renderingState.oamEvaluationState = evaluateOAMTileIndexSecondCycle
 	case evaluateOAMTileIndexSecondCycle:
@@ -363,20 +368,21 @@ func (p *PPU) fetchSprite() {
 		oamSpriteAddress = p.ports.control.spritePatternTableAddr | patternTableIndex
 		oamHighBitPlane := p.bus.read(oamSpriteAddress)
 		p.addForegroundPixels(oamHighBitPlane, oamLowBitPlane)
-		p.renderingState.currentSpriteIndex++
 	}
 }
 
 func (p *PPU) addForegroundPixels(highBitPlane uint8, lowBitPlane uint8) {
 	sprite := p.secondaryOAM[p.renderingState.currentSpriteIndex]
+	tileId := p.secondaryTileIds[p.renderingState.currentSpriteIndex]
+
 	attrByte := sprite[spriteAttrByte]
 	attr := newSpriteAttributesFromByte(attrByte)
 	xPosition := int(sprite[spriteXPosition])
 	for i := range 8 {
 		index := xPosition + i
-		isForegroundSpaceFilled := index >= len(p.foreground) ||
-			(p.foregroundFilled[index] &&
-				p.foreground[index] != p.bus.GetBackdropColor())
+		isForegroundSpaceFilled := index >= len(p.foreground.pixels) ||
+			(p.foreground.filled[index] &&
+				p.foreground.pixels[index] != p.bus.GetBackdropColor())
 		if isForegroundSpaceFilled {
 			break
 		}
@@ -387,14 +393,17 @@ func (p *PPU) addForegroundPixels(highBitPlane uint8, lowBitPlane uint8) {
 		hi := (highBitPlane >> shiftSize) & 0b01
 		lo := (lowBitPlane >> shiftSize) & 0b01
 		colorIdx := hi<<1 | lo
-		p.foreground[index] = p.bus.GetSpriteColor(attr.Palette, colorIdx)
-		p.foregroundPriority[index] = attr.HasPriority
-		p.foregroundFilled[index] = true
+		p.foreground.pixels[index] = p.bus.GetSpriteColor(attr.Palette, colorIdx)
+		p.foreground.priority[index] = attr.HasPriority
+		p.foreground.filled[index] = true
+		p.foreground.tileIds[index] = int16(tileId)
 	}
+	p.renderingState.currentSpriteIndex++
 }
 
 func (p *PPU) appendSecondaryOAMData(data [4]uint8) {
 	p.secondaryOAM[p.secondaryOAMIndex] = data
+	p.secondaryTileIds[p.secondaryOAMIndex] = p.renderingState.oamSprite
 	p.secondaryOAMIndex++
 }
 
@@ -439,14 +448,16 @@ func (p *PPU) appendPixel(pixel color.RGBA) {
 	y := p.renderingState.scanline
 	index := y*256 + x
 
-	foregroundFilled := p.foregroundFilled[x]
-	spriteHasPriority := p.foregroundPriority[x]
+	foregroundFilled := p.foreground.filled[x]
+	spriteHasPriority := p.foreground.priority[x]
+	tileId := p.foreground.tileIds[x]
 	bgIsTransparent := pixel == p.bus.GetBackdropColor()
-	spriteIsTransparent := p.foreground[x] == p.bus.GetBackdropColor()
+	spriteIsTransparent := p.foreground.pixels[x] == p.bus.GetBackdropColor()
 	spriteRenderingEnabled := p.ports.mask.SpriteRenderingEnabled()
 
-	p.foregroundFilled[x] = false
-	p.foregroundPriority[x] = false
+	p.foreground.filled[x] = false
+	p.foreground.priority[x] = false
+	p.foreground.tileIds[x] = -1
 
 	if !p.ports.mask.RenderingEnabled() {
 		p.bufferedImage[index] = p.bus.GetBackdropColor()
@@ -459,7 +470,10 @@ func (p *PPU) appendPixel(pixel color.RGBA) {
 		foregroundFilled
 
 	if drawSprite {
-		p.bufferedImage[index] = p.foreground[x]
+		p.bufferedImage[index] = p.foreground.pixels[x]
+		if !bgIsTransparent && !spriteIsTransparent && tileId == 0 {
+			p.ports.status |= setSprite0HitFlag
+		}
 	} else {
 		p.bufferedImage[index] = pixel
 	}

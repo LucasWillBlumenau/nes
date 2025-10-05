@@ -42,7 +42,7 @@ func NewBus(
 }
 
 func (b *Bus) Write(addr uint16, value uint8) bool {
-	valueAddress := b.getValueAddress(addr)
+	valueAddress := b.getRamAddress(addr)
 	if valueAddress != nil {
 		*valueAddress = value
 	}
@@ -84,7 +84,7 @@ func (b *Bus) OAMWrite(value uint8) {
 }
 
 func (b *Bus) Read(addr uint16) uint8 {
-	valueAddress := b.getValueAddress(addr)
+	valueAddress := b.getRamAddress(addr)
 	if valueAddress != nil {
 		return *valueAddress
 	}
@@ -118,7 +118,7 @@ func (b *Bus) Read(addr uint16) uint8 {
 	return 0
 }
 
-func (b *Bus) getValueAddress(addr uint16) *uint8 {
+func (b *Bus) getRamAddress(addr uint16) *uint8 {
 	isRam := addr < 0x2000
 	if isRam {
 		addr &= 0x07FF
