@@ -14,14 +14,8 @@ func (p *pixelsShiftRegister) Buffer(color color.RGBA) {
 	p.end++
 }
 
-func (p *pixelsShiftRegister) Unbuffer() color.RGBA {
-	currentIndex := p.start
+func (p *pixelsShiftRegister) Unbuffer(offset uint8) color.RGBA {
+	currentIndex := (p.start + offset) & 0b1111
 	p.start = (p.start + 1) & 0b1111
 	return p.buffer[currentIndex]
-}
-
-func (p *pixelsShiftRegister) DishMany(quantity uint16) {
-	for range quantity {
-		p.Unbuffer()
-	}
 }

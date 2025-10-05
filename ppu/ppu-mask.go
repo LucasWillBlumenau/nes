@@ -25,11 +25,11 @@ func (m *ppuMask) ShowFgInLeftMost8Pixels() bool {
 }
 
 func (m *ppuMask) BackgroundRenderingEnabled() bool {
-	return (m.value * enableBackgroundRenderingMask) > 0
+	return (m.value & enableBackgroundRenderingMask) > 0
 }
 
 func (m *ppuMask) SpriteRenderingEnabled() bool {
-	return (m.value * enableSpriteRenderingMask) > 0
+	return (m.value & enableSpriteRenderingMask) > 0
 }
 
 func (m *ppuMask) RenderingEnabled() bool {

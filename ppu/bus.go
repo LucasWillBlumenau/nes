@@ -9,18 +9,16 @@ import (
 var horizontalMirrors = []uint16{
 	0: 0,
 	1: 0,
-	2: 1,
-	3: 1,
+	2: 0x400,
+	3: 0x400,
 }
 
 var verticalMirrors = []uint16{
 	0: 0,
-	1: 1,
+	1: 0x400,
 	2: 0,
-	3: 1,
+	3: 0x400,
 }
-
-const nameTableOffset uint16 = 0x2000
 
 type PPUBus struct {
 	cart              *cartridge.Cartridge
@@ -73,14 +71,13 @@ func (b *PPUBus) getAddress(addr uint16) *uint8 {
 
 	isNameTableAddress := addr < 0x03F00
 	if isNameTableAddress {
+		nameTableIndex := addr >> 10 & 0b11
+		addr &= 0x3FF
 		mirrors := horizontalMirrors
 		if b.cart.UseVerticalMirroring {
 			mirrors = verticalMirrors
 		}
-		nameTableIndex := addr >> 10 & 0b11
-		nmTbl := mirrors[nameTableIndex]
-		addr = (nmTbl << 10) | (addr & 0b1111001111111111)
-		return &b.ram[addr-nameTableOffset]
+		return &b.ram[addr+mirrors[nameTableIndex]]
 	}
 
 	addr &= 0x1F

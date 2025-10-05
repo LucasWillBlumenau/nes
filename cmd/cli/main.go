@@ -46,7 +46,6 @@ func main() {
 	bus := bus.NewBus(ppu, cart, joypadOne, joypadTwo)
 	cpu := cpu.NewCPU(bus)
 	cpu.Reset()
-	// cpu.Pc = 0xC000
 
 	go gameWindow.Start()
 	go func() {
@@ -56,9 +55,7 @@ func main() {
 				log.Fatalln(err)
 			}
 			ppuCycles := cyclesTaken * 3
-			for range ppuCycles {
-				ppu.RunStep()
-			}
+			ppu.RunSteps(ppuCycles)
 
 		}
 	}()
