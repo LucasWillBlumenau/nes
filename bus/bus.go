@@ -99,6 +99,9 @@ func (b *Bus) Read(addr uint16) uint8 {
 		case ppuVRamDataPortAddr:
 			return b.ppu.ReadVRamDataPort()
 		}
+	} else if addr >= 0x8000 {
+		addr -= 0x8000
+		return b.cartridge.ReadPrgRom(addr)
 	}
 
 	switch addr {
@@ -120,17 +123,6 @@ func (b *Bus) getValueAddress(addr uint16) *uint8 {
 	if isRam {
 		addr &= 0x07FF
 		return &b.ram[addr]
-	}
-
-	isReadFromRom := addr >= 0x8000
-	if isReadFromRom {
-		if addr >= 0xC000 && b.cartridge.ProgramBanks == 1 {
-			addr &= 0xBFFF
-		}
-		addr -= 0x8000
-		if int(addr) < len(b.cartridge.ProgramRom) {
-			return &b.cartridge.ProgramRom[addr]
-		}
 	}
 	return nil
 }

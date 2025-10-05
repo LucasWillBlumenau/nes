@@ -15,6 +15,7 @@ const secondControlByteIndex = 7
 const ramBanksQuantityIndex = 8
 
 const headersSize = 16
+const prgBankSize = 16 * 1024
 
 type Cartridge struct {
 	UseVerticalMirroring   bool
@@ -22,11 +23,11 @@ type Cartridge struct {
 	UseTrainer             bool
 	UseFourScreenMirroring bool
 	RamBanksQuantity       uint
-	ProgramBanks           uint
+	ProgramBanksQuantity   uint
 	MapperId               uint
 	Trainer                []byte
-	ProgramRom             []byte
 	CharacterRom           []byte
+	prgRomBanks            [][]byte
 }
 
 func LoadCartridge(filePath string) (*Cartridge, error) {
@@ -47,8 +48,7 @@ func LoadCartridge(filePath string) (*Cartridge, error) {
 		return nil, ErrInvalidRomFile
 	}
 
-	programBanks := headers[programBanksIndex]
-	programSize := uint(programBanks) * 16 * 1024
+	programBanksQuantity := headers[programBanksIndex]
 	charactersBanks := headers[charactersBanksIndex]
 	charactersSize := uint(charactersBanks) * 8 * 1024
 	firstControlByte := headers[firstControlByteIndex]
@@ -71,14 +71,16 @@ func LoadCartridge(filePath string) (*Cartridge, error) {
 		}
 	}
 
-	programRom := make([]byte, programSize)
-	n, err = fp.Read(programRom)
-	if err != nil {
-		return nil, err
-	}
-
-	if n != int(programSize) {
-		return nil, ErrInvalidRomFile
+	programBanks := make([][]byte, programBanksQuantity)
+	for i := range programBanks {
+		programBanks[i] = make([]byte, prgBankSize)
+		n, err = fp.Read(programBanks[i])
+		if err != nil {
+			return nil, err
+		}
+		if n != prgBankSize {
+			return nil, ErrInvalidRomFile
+		}
 	}
 
 	characterRom := make([]byte, charactersSize)
@@ -103,11 +105,24 @@ func LoadCartridge(filePath string) (*Cartridge, error) {
 		UseTrainer:             useTrainer,
 		UseFourScreenMirroring: useFourScreenMirroring,
 		RamBanksQuantity:       uint(ramBanksQuantity),
-		ProgramBanks:           uint(programBanks),
+		ProgramBanksQuantity:   uint(programBanksQuantity),
 		MapperId:               uint(mapperId),
 		Trainer:                trainer,
-		ProgramRom:             programRom,
 		CharacterRom:           characterRom,
+		prgRomBanks:            programBanks,
 	}, nil
+}
 
+func (c *Cartridge) ReadPrgRom(addr uint16) uint8 {
+	if c.ProgramBanksQuantity == 1 {
+		if addr >= prgBankSize {
+			addr -= prgBankSize
+		}
+		return c.prgRomBanks[0][addr]
+	}
+
+	if addr >= prgBankSize {
+		return c.prgRomBanks[1][addr-prgBankSize]
+	}
+	return c.prgRomBanks[0][addr]
 }
