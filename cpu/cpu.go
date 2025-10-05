@@ -44,7 +44,7 @@ type CPU struct {
 	lastInstruction  *Instruction
 	firstOperand     uint8
 	secondOperand    uint8
-	instructionCount uint16
+	instructionCount uint64
 }
 
 func NewCPU(bus *bus.Bus) *CPU {
@@ -96,6 +96,17 @@ func (c *CPU) Reset() {
 	interrupt.InterruptSignal.Send(interrupt.Reset)
 }
 
+func (c *CPU) ResetState() {
+	lo := c.BusRead(resetLowByteAddress)
+	hi := c.BusRead(resetHighByteAddress)
+	c.A = 0
+	c.X = 0
+	c.Y = 0
+	c.P = 0b00100100
+	c.Sp = 0xFD
+	c.Pc = uint16(hi)<<8 + uint16(lo)
+}
+
 func (c *CPU) Run() (uint16, error) {
 	c.extraCycles = 0
 	if interrupt, ok := interrupt.InterruptSignal.Read(); ok {
@@ -132,6 +143,7 @@ func (c *CPU) executeInstruction() (uint16, error) {
 	}
 	c.Pc++
 	c.lastInstruction = &instruction
+
 	value := c.fetchNextValue(instruction.AddressingMode)
 
 	instruction.Dispatch(c, value)
@@ -141,14 +153,7 @@ func (c *CPU) executeInstruction() (uint16, error) {
 
 func (c *CPU) attendInterrupt(interruptValue interrupt.Interrupt) {
 	if interruptValue == interrupt.Reset {
-		lo := c.BusRead(resetLowByteAddress)
-		hi := c.BusRead(resetHighByteAddress)
-		c.A = 0
-		c.X = 0
-		c.Y = 0
-		c.P = 0b00100100
-		c.Sp = 0xFD
-		c.Pc = uint16(hi)<<8 + uint16(lo)
+		c.ResetState()
 		return
 	}
 

@@ -2,3 +2,5 @@ roms/
 *.png
 *.log
 target
+.vscode
+compare_output.py

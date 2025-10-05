@@ -101,9 +101,9 @@ func (w *Window) Start() {
 		select {
 		case image := <-w.imageChannel:
 			w.updateImage(image)
-			sdl.Delay(16)
 		default:
 		}
+		sdl.Delay(16)
 	}
 }
 

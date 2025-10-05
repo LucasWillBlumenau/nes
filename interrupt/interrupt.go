@@ -32,9 +32,11 @@ func (s *interruptSignal) Read() (Interrupt, bool) {
 }
 
 func (s *interruptSignal) Send(interrupt Interrupt) {
-	s.value = interrupt
+	shouldTrigger := !s.wasTriggered || interrupt < s.value
+	if shouldTrigger {
+		s.value = interrupt
+	}
 	s.wasTriggered = true
-
 }
 
 var InterruptSignal = interruptSignal{wasTriggered: false}
