@@ -87,11 +87,14 @@ func (w *Window) Start() {
 				w.CloseChannel <- struct{}{}
 				return
 			case *sdl.KeyboardEvent:
-				w.joypadOneState |= w.readJoypadButton(event)
+				joypadOne, joypadTwo := w.readJoypadButton(event)
+				w.joypadOneState |= joypadOne
+				w.joypadTwoState |= joypadTwo
 			}
 		}
 
 		w.joypadOneState &= w.joypadOne.Write(w.joypadOneState)
+		w.joypadTwoState &= w.joypadTwo.Write(w.joypadTwoState)
 		keys := sdl.GetKeyboardState()
 		if keys[sdl.SCANCODE_ESCAPE] != 0 {
 			w.CloseChannel <- struct{}{}
@@ -143,28 +146,40 @@ func (w *Window) createWindow() *sdl.Window {
 	return window
 }
 
-func (w *Window) readJoypadButton(event *sdl.KeyboardEvent) uint8 {
+func (w *Window) readJoypadButton(event *sdl.KeyboardEvent) (uint8, uint8) {
 	if event.Type == sdl.KEYDOWN {
 		switch event.Keysym.Sym {
-		case sdl.K_1:
-			return buttonAMask
-		case sdl.K_2:
-			return buttonBMask
+		case sdl.K_SPACE:
+			return buttonAMask, 0
+		case sdl.KMOD_LSHIFT:
+			return buttonBMask, 0
 		case sdl.K_BACKSPACE:
-			return buttonSelectMask
+			return buttonSelectMask, buttonSelectMask
 		case sdl.K_RETURN:
-			return buttonStartMask
+			return buttonStartMask, buttonStartMask
 		case sdl.K_w:
-			return buttonUpMask
+			return buttonUpMask, 0
 		case sdl.K_s:
-			return buttonDownMask
+			return buttonDownMask, 0
 		case sdl.K_a:
-			return buttonLeftMask
+			return buttonLeftMask, 0
 		case sdl.K_d:
-			return buttonRightMask
+			return buttonRightMask, 0
+		case sdl.K_1:
+			return 0, buttonAMask
+		case sdl.K_2:
+			return 0, buttonBMask
+		case sdl.K_UP:
+			return 0, buttonUpMask
+		case sdl.K_DOWN:
+			return 0, buttonDownMask
+		case sdl.K_LEFT:
+			return 0, buttonLeftMask
+		case sdl.K_RIGHT:
+			return 0, buttonRightMask
 		}
 	}
-	return 0
+	return 0, 0
 }
 
 func (w *Window) updateImage(colors []color.RGBA) {

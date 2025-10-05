@@ -56,7 +56,6 @@ func main() {
 			}
 			ppuCycles := cyclesTaken * 3
 			ppu.RunSteps(ppuCycles)
-
 		}
 	}()
 	<-gameWindow.CloseChannel

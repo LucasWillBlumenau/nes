@@ -1,6 +1,7 @@
 package ppu
 
 import (
+	"fmt"
 	"image/color"
 
 	"github.com/LucasWillBlumenau/nes/interrupt"
@@ -226,6 +227,7 @@ func (p *PPU) handlePreRenderScanline() {
 		p.frameCount++
 		p.imageChannel <- p.bufferedImage[:]
 		p.rendering = true
+		p.printOAM()
 	} else if p.renderingState.clock == 257 && p.ports.mask.RenderingEnabled() {
 		p.currentAddr.SetHorizontalBits(p.tempAddr)
 	} else if p.renderingState.clock >= 280 && p.renderingState.clock < 305 && p.ports.mask.RenderingEnabled() {
@@ -233,6 +235,13 @@ func (p *PPU) handlePreRenderScanline() {
 	} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
 		p.fetchBackgroundTile()
 	}
+}
+
+func (p *PPU) printOAM() {
+	for _, oam := range p.oam {
+		fmt.Printf("%02x %02x %02x %02x ", oam[0], oam[1], oam[2], oam[3])
+	}
+	fmt.Println()
 }
 
 func (p *PPU) handleVisibleScanline() {
