@@ -10,8 +10,8 @@ const (
 	tileSize           uint16 = 16
 	highBitPlaneOffset uint16 = 8
 
-	setStatusVBlank uint8 = 0b10000000
-	setSprite0HitFlag
+	setStatusVBlank         uint8 = 0b10000000
+	setSprite0HitFlag       uint8 = 0b01000000
 	setSpriteOverflowFlag   uint8 = 0b00100000
 	resetStatusVBlank       uint8 = 0b01111111
 	resetSprite0HitFlag     uint8 = 0b10111111
@@ -75,7 +75,7 @@ type foreground struct {
 	pixels   [256]color.RGBA
 	priority [256]bool
 	filled   [256]bool
-	tileIds  [256]int16
+	tileIds  [256]uint8
 }
 
 type ppuRenderingState struct {
@@ -98,6 +98,7 @@ type PPU struct {
 	secondaryOAM      [8][4]uint8
 	secondaryTileIds  [8]uint8
 	foreground        foreground
+	nextForeground    foreground
 	secondaryOAMIndex int
 	rendering         bool
 	ports             ppuPorts
@@ -117,9 +118,6 @@ func NewPPU(bus *PPUBus, imageChannel chan []color.RGBA) *PPU {
 	ppu := &PPU{
 		bus:          bus,
 		imageChannel: imageChannel,
-	}
-	for i := range ppu.foreground.tileIds {
-		ppu.foreground.tileIds[i] = -1
 	}
 	return ppu
 }
@@ -250,9 +248,11 @@ func (p *PPU) handleVisibleScanline() {
 		p.secondaryOAMIndex = 0
 		p.renderingState.currentSpriteIndex = 0
 		p.renderingState.oamEvaluationState = evaluateOAMYPositionByteFirstCycle
+		p.foreground = p.nextForeground
+		p.nextForeground = foreground{}
 	} else if p.renderingState.clock < 257 {
-		nextPixel := p.registers.pixelBuffer.Unbuffer(p.fineX)
-		p.appendPixel(nextPixel)
+		bgPixel := p.registers.pixelBuffer.Unbuffer(p.fineX)
+		p.appendPixel(bgPixel)
 		p.fetchBackgroundTile()
 
 		if p.renderingState.clock < 65 {
@@ -380,9 +380,9 @@ func (p *PPU) addForegroundPixels(highBitPlane uint8, lowBitPlane uint8) {
 	xPosition := int(sprite[spriteXPosition])
 	for i := range 8 {
 		index := xPosition + i
-		isForegroundSpaceFilled := index >= len(p.foreground.pixels) ||
-			(p.foreground.filled[index] &&
-				p.foreground.pixels[index] != p.bus.GetBackdropColor())
+		isForegroundSpaceFilled := index >= len(p.nextForeground.pixels) ||
+			(p.nextForeground.filled[index] &&
+				p.nextForeground.pixels[index] != p.bus.GetBackdropColor())
 		if isForegroundSpaceFilled {
 			break
 		}
@@ -393,17 +393,17 @@ func (p *PPU) addForegroundPixels(highBitPlane uint8, lowBitPlane uint8) {
 		hi := (highBitPlane >> shiftSize) & 0b01
 		lo := (lowBitPlane >> shiftSize) & 0b01
 		colorIdx := hi<<1 | lo
-		p.foreground.pixels[index] = p.bus.GetSpriteColor(attr.Palette, colorIdx)
-		p.foreground.priority[index] = attr.HasPriority
-		p.foreground.filled[index] = true
-		p.foreground.tileIds[index] = int16(tileId)
+		p.nextForeground.pixels[index] = p.bus.GetSpriteColor(attr.Palette, colorIdx)
+		p.nextForeground.priority[index] = attr.HasPriority
+		p.nextForeground.filled[index] = true
+		p.nextForeground.tileIds[index] = tileId
 	}
 	p.renderingState.currentSpriteIndex++
 }
 
 func (p *PPU) appendSecondaryOAMData(data [4]uint8) {
 	p.secondaryOAM[p.secondaryOAMIndex] = data
-	p.secondaryTileIds[p.secondaryOAMIndex] = p.renderingState.oamSprite
+	p.secondaryTileIds[p.secondaryOAMIndex] = p.renderingState.oamSprite + 1
 	p.secondaryOAMIndex++
 }
 
@@ -443,7 +443,7 @@ func (p *PPU) fillShiftRegisters() {
 	}
 }
 
-func (p *PPU) appendPixel(pixel color.RGBA) {
+func (p *PPU) appendPixel(bgPixel color.RGBA) {
 	x := p.renderingState.clock - 1
 	y := p.renderingState.scanline
 	index := y*256 + x
@@ -451,31 +451,34 @@ func (p *PPU) appendPixel(pixel color.RGBA) {
 	foregroundFilled := p.foreground.filled[x]
 	spriteHasPriority := p.foreground.priority[x]
 	tileId := p.foreground.tileIds[x]
-	bgIsTransparent := pixel == p.bus.GetBackdropColor()
-	spriteIsTransparent := p.foreground.pixels[x] == p.bus.GetBackdropColor()
-	spriteRenderingEnabled := p.ports.mask.SpriteRenderingEnabled()
-
-	p.foreground.filled[x] = false
-	p.foreground.priority[x] = false
-	p.foreground.tileIds[x] = -1
+	fgPixel := p.foreground.pixels[x]
+	bgIsTransparent := bgPixel == p.bus.GetBackdropColor()
+	spriteIsTransparent := fgPixel == p.bus.GetBackdropColor()
 
 	if !p.ports.mask.RenderingEnabled() {
 		p.bufferedImage[index] = p.bus.GetBackdropColor()
 		return
 	}
 
-	drawSprite := spriteRenderingEnabled &&
-		!spriteIsTransparent &&
-		(bgIsTransparent || spriteHasPriority) &&
-		foregroundFilled
+	if !p.ports.mask.BackgroundRenderingEnabled() {
+		bgPixel = p.bus.GetBackdropColor()
+	}
+	if !p.ports.mask.SpriteRenderingEnabled() {
+		fgPixel = p.bus.GetBackdropColor()
+	}
 
-	if drawSprite {
-		p.bufferedImage[index] = p.foreground.pixels[x]
-		if !bgIsTransparent && !spriteIsTransparent && tileId == 0 {
+	if spriteIsTransparent && bgIsTransparent {
+		p.bufferedImage[index] = p.bus.GetBackdropColor()
+		if foregroundFilled && tileId == 1 {
 			p.ports.status |= setSprite0HitFlag
 		}
+	} else if !bgIsTransparent &&
+		(spriteIsTransparent ||
+			!spriteHasPriority ||
+			!foregroundFilled) {
+		p.bufferedImage[index] = bgPixel
 	} else {
-		p.bufferedImage[index] = pixel
+		p.bufferedImage[index] = fgPixel
 	}
 }
 

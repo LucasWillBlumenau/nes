@@ -30,7 +30,7 @@ func (s *WindowSize) Area() int {
 }
 
 type Window struct {
-	CloseChannel   chan struct{}
+	closeChannel   chan struct{}
 	joypadOne      *joypad.Joypad
 	joypadOneState uint8
 	joypadTwo      *joypad.Joypad
@@ -50,7 +50,7 @@ func NewWindow(
 ) *Window {
 	closeChannel := make(chan struct{})
 	return &Window{
-		CloseChannel: closeChannel,
+		closeChannel: closeChannel,
 		joypadOne:    joypadOne,
 		joypadTwo:    joypadTwo,
 		imageChannel: imageChannel,
@@ -84,7 +84,7 @@ func (w *Window) Start() {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event := event.(type) {
 			case *sdl.QuitEvent:
-				w.CloseChannel <- struct{}{}
+				w.closeChannel <- struct{}{}
 				return
 			case *sdl.KeyboardEvent:
 				joypadOne, joypadTwo := w.readJoypadButton(event)
@@ -97,7 +97,7 @@ func (w *Window) Start() {
 		w.joypadTwoState &= w.joypadTwo.Write(w.joypadTwoState)
 		keys := sdl.GetKeyboardState()
 		if keys[sdl.SCANCODE_ESCAPE] != 0 {
-			w.CloseChannel <- struct{}{}
+			w.closeChannel <- struct{}{}
 			return
 		}
 
@@ -151,7 +151,7 @@ func (w *Window) readJoypadButton(event *sdl.KeyboardEvent) (uint8, uint8) {
 		switch event.Keysym.Sym {
 		case sdl.K_SPACE:
 			return buttonAMask, 0
-		case sdl.KMOD_LSHIFT:
+		case sdl.K_LSHIFT:
 			return buttonBMask, 0
 		case sdl.K_BACKSPACE:
 			return buttonSelectMask, buttonSelectMask
@@ -196,4 +196,8 @@ func (w *Window) updateImage(colors []color.RGBA) {
 	w.renderer.Clear()
 	w.renderer.Copy(w.texture, nil, nil)
 	w.renderer.Present()
+}
+
+func (w *Window) WaitUserExit() {
+	<-w.closeChannel
 }

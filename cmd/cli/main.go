@@ -22,7 +22,7 @@ func main() {
 	defer f.Close()
 
 	log.SetOutput(f)
-	os.Stdout = f
+	// os.Stdout = f
 	romPath := readCliArgs()
 	cart, err := cartridge.LoadCartridge(romPath)
 	if err != nil {
@@ -58,7 +58,9 @@ func main() {
 			ppu.RunSteps(ppuCycles)
 		}
 	}()
-	<-gameWindow.CloseChannel
+	gameWindow.WaitUserExit()
+	// for range imageChannel {
+	// }
 }
 
 func readCliArgs() string {

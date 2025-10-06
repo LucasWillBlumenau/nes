@@ -23,20 +23,15 @@ var verticalMirrors = []uint16{
 type PPUBus struct {
 	cart              *cartridge.Cartridge
 	ram               []uint8
-	backgroundPalette []uint8
-	foregroundPalette []uint8
+	backgroundPalette [16]uint8
+	foregroundPalette [16]uint8
 }
 
 func NewPPUBus(cart *cartridge.Cartridge) *PPUBus {
 	ram := make([]uint8, 2*1024)
-	backgroundPalete := make([]uint8, 16)
-	foregroundPalete := make([]uint8, 16)
-
 	return &PPUBus{
-		cart:              cart,
-		ram:               ram,
-		backgroundPalette: backgroundPalete,
-		foregroundPalette: foregroundPalete,
+		cart: cart,
+		ram:  ram,
 	}
 }
 
