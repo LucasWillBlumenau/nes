@@ -72,7 +72,7 @@ const (
 )
 
 type foreground struct {
-	pixels   [256]color.RGBA
+	pixels   [256]pixel
 	priority [256]bool
 	filled   [256]bool
 	tileIds  [256]uint8
@@ -251,8 +251,7 @@ func (p *PPU) handleVisibleScanline() {
 		p.foreground = p.nextForeground
 		p.nextForeground = foreground{}
 	} else if p.renderingState.clock < 257 {
-		bgPixel := p.registers.pixelBuffer.Unbuffer(p.fineX)
-		p.appendPixel(bgPixel)
+		p.appendPixel()
 		p.fetchBackgroundTile()
 
 		if p.renderingState.clock < 65 {
@@ -382,7 +381,7 @@ func (p *PPU) addForegroundPixels(highBitPlane uint8, lowBitPlane uint8) {
 		index := xPosition + i
 		isForegroundSpaceFilled := index >= len(p.nextForeground.pixels) ||
 			(p.nextForeground.filled[index] &&
-				p.nextForeground.pixels[index] != p.bus.GetBackdropColor())
+				p.nextForeground.pixels[index].Color != 0)
 		if isForegroundSpaceFilled {
 			break
 		}
@@ -392,8 +391,8 @@ func (p *PPU) addForegroundPixels(highBitPlane uint8, lowBitPlane uint8) {
 		}
 		hi := (highBitPlane >> shiftSize) & 0b01
 		lo := (lowBitPlane >> shiftSize) & 0b01
-		colorIdx := hi<<1 | lo
-		p.nextForeground.pixels[index] = p.bus.GetSpriteColor(attr.Palette, colorIdx)
+		color := hi<<1 | lo
+		p.nextForeground.pixels[index] = pixel{Palette: attr.Palette, Color: color}
 		p.nextForeground.priority[index] = attr.HasPriority
 		p.nextForeground.filled[index] = true
 		p.nextForeground.tileIds[index] = tileId
@@ -436,14 +435,14 @@ func (p *PPU) fillShiftRegisters() {
 			shift := 7 - i
 			hi := (p.renderingState.highBitPlane >> shift) & 0b01
 			lo := (p.renderingState.lowBitPlane >> shift) & 0b01
-			colorIdx := (hi << 1) | lo
-			color := p.bus.GetBackgroundColor(p.renderingState.paletteId, colorIdx)
-			p.registers.pixelBuffer.Buffer(color)
+			color := (hi << 1) | lo
+			pixel := pixel{Palette: p.renderingState.paletteId, Color: color}
+			p.registers.pixelBuffer.Buffer(pixel)
 		}
 	}
 }
 
-func (p *PPU) appendPixel(bgPixel color.RGBA) {
+func (p *PPU) appendPixel() {
 	x := p.renderingState.clock - 1
 	y := p.renderingState.scanline
 	index := y*256 + x
@@ -452,19 +451,13 @@ func (p *PPU) appendPixel(bgPixel color.RGBA) {
 	spriteHasPriority := p.foreground.priority[x]
 	tileId := p.foreground.tileIds[x]
 	fgPixel := p.foreground.pixels[x]
-	bgIsTransparent := bgPixel == p.bus.GetBackdropColor()
-	spriteIsTransparent := fgPixel == p.bus.GetBackdropColor()
+	bgPixel := p.registers.pixelBuffer.Unbuffer(p.fineX)
+	bgIsTransparent := bgPixel.Color == 0 || !p.ports.mask.BackgroundRenderingEnabled()
+	spriteIsTransparent := fgPixel.Color == 0 || !p.ports.mask.SpriteRenderingEnabled()
 
 	if !p.ports.mask.RenderingEnabled() {
 		p.bufferedImage[index] = p.bus.GetBackdropColor()
 		return
-	}
-
-	if !p.ports.mask.BackgroundRenderingEnabled() {
-		bgPixel = p.bus.GetBackdropColor()
-	}
-	if !p.ports.mask.SpriteRenderingEnabled() {
-		fgPixel = p.bus.GetBackdropColor()
 	}
 
 	if spriteIsTransparent && bgIsTransparent {
@@ -476,9 +469,9 @@ func (p *PPU) appendPixel(bgPixel color.RGBA) {
 		(spriteIsTransparent ||
 			!spriteHasPriority ||
 			!foregroundFilled) {
-		p.bufferedImage[index] = bgPixel
+		p.bufferedImage[index] = p.bus.GetBackgroundColor(bgPixel.Palette, bgPixel.Color)
 	} else {
-		p.bufferedImage[index] = fgPixel
+		p.bufferedImage[index] = p.bus.GetSpriteColor(fgPixel.Palette, fgPixel.Color)
 	}
 }
 

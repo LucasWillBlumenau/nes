@@ -59,8 +59,6 @@ func main() {
 		}
 	}()
 	gameWindow.WaitUserExit()
-	// for range imageChannel {
-	// }
 }
 
 func readCliArgs() string {
