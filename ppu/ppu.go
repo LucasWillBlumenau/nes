@@ -147,7 +147,8 @@ func (p *PPU) ReadVRamDataPort() uint8 {
 	data := p.registers.bufferedData
 	addr := p.currentAddr.Value()
 	p.registers.bufferedData = p.bus.read(addr)
-	currentAddrPointsToPaletteData := addr >= 0x3F00 && addr < 0x4000
+	mirroredAddr := addr & 0x3FFF
+	currentAddrPointsToPaletteData := mirroredAddr >= 0x3F00 && mirroredAddr < 0x4000
 	if currentAddrPointsToPaletteData {
 		data = p.registers.bufferedData
 	}
@@ -453,6 +454,7 @@ func (p *PPU) appendPixel() {
 	x := int(p.renderingState.clock - 1)
 	y := int(p.renderingState.scanline)
 	pixelColor := p.getCurrentPixelColor(x)
+
 	for i := range p.scaleFactor {
 		x := x*p.scaleFactor + i
 		y := originalHeigth*p.scaleFactor - y*p.scaleFactor + i
@@ -473,12 +475,12 @@ func (p *PPU) getCurrentPixelColor(x int) color.RGBA {
 		return p.bus.GetBackdropColor()
 	}
 
-	if spriteIsTransparent && bgIsTransparent {
-		if foregroundFilled && tileId == 1 {
-			p.ports.status |= setSprite0HitFlag
-		}
-		return p.bus.GetBackdropColor()
+	if !spriteIsTransparent && !bgIsTransparent && tileId == 1 {
+		p.ports.status |= setSprite0HitFlag
+	}
 
+	if spriteIsTransparent && bgIsTransparent {
+		return p.bus.GetBackdropColor()
 	} else if !bgIsTransparent &&
 		(spriteIsTransparent ||
 			!spriteHasPriority ||

@@ -6,9 +6,21 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/LucasWillBlumenau/nes/joypad"
 	"github.com/LucasWillBlumenau/nes/nes"
 	"github.com/go-gl/gl/all-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+)
+
+const (
+	buttonAMask      uint8 = 0b00000001
+	buttonBMask      uint8 = 0b00000010
+	buttonSelectMask uint8 = 0b00000100
+	buttonStartMask  uint8 = 0b00001000
+	buttonUpMask     uint8 = 0b00010000
+	buttonDownMask   uint8 = 0b00100000
+	buttonLeftMask   uint8 = 0b01000000
+	buttonRightMask  uint8 = 0b10000000
 )
 
 func init() {
@@ -22,11 +34,22 @@ func main() {
 	}
 	defer glfw.Terminate()
 
-	window, texture := setupWindow()
+	var joypadOneState uint8 = 0
+	var joypadTwoState uint8 = 0
 
+	window, texture := setupWindow()
 	frames := make(chan image.RGBA)
+
 	cartPath := readCliArgs()
-	nes, err := nes.NewNES(frames, cartPath, 2)
+	joypadOne := joypad.New()
+	joypadTwo := joypad.New()
+	nes, err := nes.NewNES(
+		frames,
+		cartPath,
+		2,
+		joypadOne,
+		joypadTwo,
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -34,15 +57,21 @@ func main() {
 	go nes.Run()
 	for !window.ShouldClose() {
 		var width, heigth = window.GetSize()
-		img := <-nes.Frames
+		select {
+		case img := <-nes.Frames:
 
-		width32 := int32(width)
-		heigth32 := int32(heigth)
-		gl.BindTexture(gl.TEXTURE_2D, texture)
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width32, heigth32, 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(img.Pix))
-		gl.BlitFramebuffer(0, 0, width32, heigth32, 0, 0, width32, heigth32, gl.COLOR_BUFFER_BIT, gl.LINEAR)
-		window.SwapBuffers()
-		glfw.PollEvents()
+			width32 := int32(width)
+			heigth32 := int32(heigth)
+			gl.BindTexture(gl.TEXTURE_2D, texture)
+			gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width32, heigth32, 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(img.Pix))
+			gl.BlitFramebuffer(0, 0, width32, heigth32, 0, 0, width32, heigth32, gl.COLOR_BUFFER_BIT, gl.LINEAR)
+			window.SwapBuffers()
+			glfw.PollEvents()
+		default:
+			joypadOneState, joypadTwoState = readJoypadButton(window)
+			joypadOneState &= joypadOne.Write(joypadOneState)
+			joypadTwoState &= joypadTwo.Write(joypadTwoState)
+		}
 	}
 }
 
@@ -72,6 +101,55 @@ func setupWindow() (*glfw.Window, uint32) {
 	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer)
 	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, 0)
 	return window, texture
+}
+
+func readJoypadButton(window *glfw.Window) (uint8, uint8) {
+	var joypadOneState uint8 = 0
+	var joypadTwoState uint8 = 0
+
+	masks := []uint8{
+		buttonAMask,
+		buttonBMask,
+		buttonUpMask,
+		buttonDownMask,
+		buttonLeftMask,
+		buttonRightMask,
+	}
+	joypadOneKeys := []glfw.Key{
+		glfw.KeySpace,
+		glfw.KeyLeftShift,
+		glfw.KeyW,
+		glfw.KeyS,
+		glfw.KeyA,
+		glfw.KeyD,
+	}
+
+	joypadTwoKeys := []glfw.Key{
+		glfw.Key1,
+		glfw.Key2,
+		glfw.KeyUp,
+		glfw.KeyDown,
+		glfw.KeyLeft,
+		glfw.KeyRight,
+	}
+
+	for i := range masks {
+		mask := masks[i]
+		if window.GetKey(joypadOneKeys[i]) == glfw.Press {
+			joypadOneState |= mask
+		}
+		if window.GetKey(joypadTwoKeys[i]) == glfw.Press {
+			joypadTwoState |= mask
+		}
+	}
+
+	if window.GetKey(glfw.KeyEnter) == glfw.Press {
+		joypadOneState |= buttonStartMask
+	}
+	if window.GetKey(glfw.KeyBackspace) == glfw.Press {
+		joypadOneState |= buttonSelectMask
+	}
+	return joypadOneState, joypadTwoState
 }
 
 func readCliArgs() string {

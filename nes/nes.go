@@ -20,7 +20,13 @@ type NES struct {
 	cpu    *cpu.CPU
 }
 
-func NewNES(frames chan image.RGBA, path string, scaleFactor int) (*NES, error) {
+func NewNES(
+	frames chan image.RGBA,
+	path string,
+	scaleFactor int,
+	joypadOne *joypad.Joypad,
+	joypadTwo *joypad.Joypad,
+) (*NES, error) {
 	f, err := os.Create("output.log")
 	if err != nil {
 		return nil, err
@@ -31,9 +37,6 @@ func NewNES(frames chan image.RGBA, path string, scaleFactor int) (*NES, error) 
 	if err != nil {
 		return nil, err
 	}
-
-	joypadOne := joypad.New()
-	joypadTwo := joypad.New()
 
 	ppuBus := ppu.NewPPUBus(cart)
 	ppu := ppu.NewPPU(ppuBus, frames, scaleFactor)
@@ -65,6 +68,5 @@ func (n *NES) Run() {
 			diff := time.Duration(expectedElapsedTime - elapsedTime)
 			time.Sleep(diff)
 		}
-
 	}
 }
