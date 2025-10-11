@@ -1,6 +1,7 @@
 package ppu
 
 import (
+	"image"
 	"image/color"
 
 	"github.com/LucasWillBlumenau/nes/interrupt"
@@ -21,6 +22,9 @@ const (
 	spriteTileIndex uint8 = 1
 	spriteAttrByte  uint8 = 2
 	spriteXPosition uint8 = 3
+
+	originalWidth  = 256
+	originalHeigth = 240
 )
 
 type ppuPorts struct {
@@ -93,7 +97,7 @@ type ppuRenderingState struct {
 
 type PPU struct {
 	bus               *PPUBus
-	bufferedImage     [256 * 240]color.RGBA
+	currentFrame      image.RGBA
 	oam               [64][4]uint8
 	secondaryOAM      [8][4]uint8
 	secondaryTileIds  [8]uint8
@@ -104,20 +108,23 @@ type PPU struct {
 	ports             ppuPorts
 	renderingState    ppuRenderingState
 	registers         ppuRegisters
-	imageChannel      chan []color.RGBA
+	frameChannel      chan image.RGBA
 	currentAddr       vRegister
 	tempAddr          uint16
 	fineX             uint8
 	frameCount        uint64
 	cycles            uint64
+	scaleFactor       int
 	cleanVBlank       bool
 	oddFrame          bool
 }
 
-func NewPPU(bus *PPUBus, imageChannel chan []color.RGBA) *PPU {
+func NewPPU(bus *PPUBus, frameChannel chan image.RGBA, scaleFactor int) *PPU {
 	ppu := &PPU{
 		bus:          bus,
-		imageChannel: imageChannel,
+		frameChannel: frameChannel,
+		scaleFactor:  scaleFactor,
+		currentFrame: *image.NewRGBA(image.Rect(0, 0, originalWidth*scaleFactor, originalHeigth*scaleFactor)),
 	}
 	return ppu
 }
@@ -231,7 +238,7 @@ func (p *PPU) handlePreRenderScanline() {
 		p.ports.status &= resetSprite0HitFlag
 		p.ports.status &= resetSpriteOverflowFlag
 		p.frameCount++
-		p.imageChannel <- p.bufferedImage[:]
+		p.frameChannel <- p.currentFrame
 		p.rendering = true
 	} else if p.renderingState.clock == 257 && p.ports.mask.RenderingEnabled() {
 		p.currentAddr.SetHorizontalBits(p.tempAddr)
@@ -443,10 +450,17 @@ func (p *PPU) fillShiftRegisters() {
 }
 
 func (p *PPU) appendPixel() {
-	x := p.renderingState.clock - 1
-	y := p.renderingState.scanline
-	index := y*256 + x
+	x := int(p.renderingState.clock - 1)
+	y := int(p.renderingState.scanline)
+	pixelColor := p.getCurrentPixelColor(x)
+	for i := range p.scaleFactor {
+		x := x*p.scaleFactor + i
+		y := originalHeigth*p.scaleFactor - y*p.scaleFactor + i
+		p.currentFrame.Set(x, y, pixelColor)
+	}
+}
 
+func (p *PPU) getCurrentPixelColor(x int) color.RGBA {
 	foregroundFilled := p.foreground.filled[x]
 	spriteHasPriority := p.foreground.priority[x]
 	tileId := p.foreground.tileIds[x]
@@ -456,23 +470,23 @@ func (p *PPU) appendPixel() {
 	spriteIsTransparent := fgPixel.Color == 0 || !p.ports.mask.SpriteRenderingEnabled()
 
 	if !p.ports.mask.RenderingEnabled() {
-		p.bufferedImage[index] = p.bus.GetBackdropColor()
-		return
+		return p.bus.GetBackdropColor()
 	}
 
 	if spriteIsTransparent && bgIsTransparent {
-		p.bufferedImage[index] = p.bus.GetBackdropColor()
 		if foregroundFilled && tileId == 1 {
 			p.ports.status |= setSprite0HitFlag
 		}
+		return p.bus.GetBackdropColor()
+
 	} else if !bgIsTransparent &&
 		(spriteIsTransparent ||
 			!spriteHasPriority ||
 			!foregroundFilled) {
-		p.bufferedImage[index] = p.bus.GetBackgroundColor(bgPixel.Palette, bgPixel.Color)
-	} else {
-		p.bufferedImage[index] = p.bus.GetSpriteColor(fgPixel.Palette, fgPixel.Color)
+		return p.bus.GetBackgroundColor(bgPixel.Palette, bgPixel.Color)
+
 	}
+	return p.bus.GetSpriteColor(fgPixel.Palette, fgPixel.Color)
 }
 
 func (p *PPU) vBlank() {

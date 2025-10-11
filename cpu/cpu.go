@@ -29,22 +29,21 @@ const (
 )
 
 type CPU struct {
-	A                uint8
-	X                uint8
-	Y                uint8
-	P                uint8
-	Sp               uint8
-	Pc               uint16
-	elapsedCycles    uint64
-	bus              *bus.Bus
-	extraCycles      uint16
-	dmaOccuring      bool
-	dmaPage          uint16
-	dmaFetches       uint16
-	lastInstruction  *Instruction
-	firstOperand     uint8
-	secondOperand    uint8
-	instructionCount uint64
+	A               uint8
+	X               uint8
+	Y               uint8
+	P               uint8
+	Sp              uint8
+	Pc              uint16
+	elapsedCycles   int64
+	bus             *bus.Bus
+	extraCycles     uint16
+	dmaOccuring     bool
+	dmaPage         uint16
+	dmaFetches      uint16
+	lastInstruction *Instruction
+	firstOperand    uint8
+	secondOperand   uint8
 }
 
 func NewCPU(bus *bus.Bus) *CPU {
@@ -88,7 +87,7 @@ func (c *CPU) ElapseCycle() {
 	c.extraCycles++
 }
 
-func (c *CPU) ElapsedCycles() uint64 {
+func (c *CPU) ElapsedCycles() int64 {
 	return c.elapsedCycles
 }
 
@@ -129,7 +128,7 @@ func (c *CPU) Run() (uint16, error) {
 	if err != nil {
 		return 0, err
 	}
-	c.elapsedCycles += uint64(cyclesTaken)
+	c.elapsedCycles += int64(cyclesTaken)
 	return cyclesTaken, err
 }
 
@@ -147,7 +146,6 @@ func (c *CPU) executeInstruction() (uint16, error) {
 	value := c.fetchNextValue(instruction.AddressingMode)
 
 	instruction.Dispatch(c, value)
-	c.instructionCount++
 	return instruction.Cycles + c.extraCycles, nil
 }
 

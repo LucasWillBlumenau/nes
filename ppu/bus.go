@@ -44,8 +44,7 @@ func NewPPUBus(cart *cartridge.Cartridge) *PPUBus {
 }
 
 func (b *PPUBus) write(addr uint16, value uint8) {
-	writeAddr, device := b.getAddress(addr)
-	if writeAddr != nil {
+	if writeAddr, device := b.getAddress(addr); writeAddr != nil {
 		if device == memoryDevicePalette {
 			value &= 0b00111111
 		}
@@ -55,8 +54,7 @@ func (b *PPUBus) write(addr uint16, value uint8) {
 }
 
 func (b *PPUBus) read(addr uint16) uint8 {
-	readAddr, _ := b.getAddress(addr)
-	if readAddr != nil {
+	if readAddr, _ := b.getAddress(addr); readAddr != nil {
 		return *readAddr
 	}
 	return 0
