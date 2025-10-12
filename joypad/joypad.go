@@ -1,59 +1,66 @@
 package joypad
 
 import (
+	"fmt"
 	"sync"
 )
 
+var nextId int = 1
+
 type Joypad struct {
-	bufferedState uint8
-	status        uint8
-	updateStatus  bool
-	mu            sync.Mutex
+	id         int
+	state      []bool
+	savedState []bool
+	strobe     bool
+	readsCount uint8
+	mu         sync.Mutex
 }
 
 func New() *Joypad {
+	defer func() {
+		nextId++
+	}()
 	return &Joypad{
-		status:       0x00,
-		updateStatus: false,
+		id:         nextId,
+		state:      make([]bool, 8),
+		savedState: make([]bool, 8),
+		strobe:     false,
 	}
 }
 
-func (j *Joypad) Write(value uint8) uint8 {
-	if value > 0 {
-		if j.canUpdate() {
-			j.status |= value
-		} else {
-			j.bufferedState |= value
-		}
-		return value ^ 0xFF
-	}
+func (j *Joypad) Write(value uint8) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
 
-	return 0xFF
+	newStrobeValue := (value & 0b01) == 1
+	if j.strobe && !newStrobeValue {
+		copy(j.savedState, j.state)
+	}
+	j.strobe = newStrobeValue
+	j.readsCount = 0
 }
 
 func (j *Joypad) Read() uint8 {
-	value := j.status & 0b01
-	j.status >>= 1
-	return value
-}
-
-func (j *Joypad) SetStrobe(value uint8) {
-	f := (value & 0b01) == 1
-	j.setUpdateStatus(f)
-}
-
-func (j *Joypad) canUpdate() bool {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	return j.updateStatus
-}
 
-func (j *Joypad) setUpdateStatus(updateStatus bool) {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	if updateStatus {
-		j.status = j.bufferedState
-		j.bufferedState = 0
+	if j.readsCount > 7 || j.strobe {
+		return 1
 	}
-	j.updateStatus = updateStatus
+
+	buttonPressed := j.savedState[j.readsCount]
+	j.readsCount++
+
+	if buttonPressed {
+		fmt.Printf("%08b\r", 1<<(j.readsCount-1))
+		return 1
+	}
+	return 0
+}
+
+func (j *Joypad) SetControl(index uint8, value bool) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	j.state[index] = value
 }

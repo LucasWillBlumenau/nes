@@ -69,14 +69,13 @@ func (b *Bus) Write(addr uint16, value uint8) bool {
 		switch addr {
 		case ppuOAMDMAPortAddr:
 			return true
-		case ppuJoypadOnePortAddr:
-			b.joypadOne.SetStrobe(value)
-		case ppuJoypadTwoPortAddr:
-			b.joypadTwo.SetStrobe(value)
+		case ppuJoypadOnePortAddr,
+			ppuJoypadTwoPortAddr:
+			b.joypadOne.Write(value)
+			b.joypadTwo.Write(value)
 		}
 	}
 	return false
-	// TODO: check out behavior when doing writes to addresses that should only be read
 }
 
 func (b *Bus) OAMWrite(value uint8) {

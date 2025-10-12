@@ -16,19 +16,11 @@ const (
 )
 
 type vRegister struct {
-	value uint16
-}
-
-func (r *vRegister) Value() uint16 {
-	return r.value
-}
-
-func (r *vRegister) SetValue(value uint16) {
-	r.value = value
+	Value uint16
 }
 
 func (r *vRegister) CoarseX() uint16 {
-	return (r.value & coarseXMask) >> coarseXPosition
+	return (r.Value & coarseXMask) >> coarseXPosition
 }
 
 func (r *vRegister) IncrementX() {
@@ -43,16 +35,16 @@ func (r *vRegister) IncrementX() {
 }
 
 func (r *vRegister) flipNametableX() {
-	r.value ^= nametableX
+	r.Value ^= nametableX
 }
 
 func (r *vRegister) setCoarseX(value uint16) {
-	r.value &= ^coarseXMask
-	r.value |= value & coarseXMask
+	r.Value &= ^coarseXMask
+	r.Value |= value & coarseXMask
 }
 
 func (r *vRegister) CoarseY() uint16 {
-	return (r.value & coarseYMask) >> coarseYPosition
+	return (r.Value & coarseYMask) >> coarseYPosition
 }
 
 func (r *vRegister) IncrementY() {
@@ -76,56 +68,56 @@ func (r *vRegister) IncrementY() {
 }
 
 func (r *vRegister) flipNametableY() {
-	r.value ^= nametableY
+	r.Value ^= nametableY
 }
 
 func (r *vRegister) setCoarseY(value uint16) {
-	r.value &= ^coarseYMask
-	r.value |= (value & (coarseYMask >> coarseYPosition)) << coarseYPosition
+	r.Value &= ^coarseYMask
+	r.Value |= (value & (coarseYMask >> coarseYPosition)) << coarseYPosition
 }
 
 func (r *vRegister) FineY() uint16 {
-	return (r.value & fineYMask) >> fineYPosition
+	return (r.Value & fineYMask) >> fineYPosition
 }
 
 func (r *vRegister) setFineY(value uint16) {
-	r.value &= ^fineYMask
-	r.value |= (value & (fineYMask >> fineYPosition)) << fineYPosition
+	r.Value &= ^fineYMask
+	r.Value |= (value & (fineYMask >> fineYPosition)) << fineYPosition
 }
 
 func (r *vRegister) Nametable() uint16 {
-	return (r.value & nametableMask) >> nametablePosition
+	return (r.Value & nametableMask) >> nametablePosition
 }
 
 func (r *vRegister) NametableAddress() uint16 {
-	value := r.value &^ fineYMask
+	value := r.Value &^ fineYMask
 	return addrNametableOffset | value
 }
 
 func (r *vRegister) AttrTableAddress() uint16 {
 	coarseX := r.CoarseX() >> 2
 	coarseY := r.CoarseY() >> 2
-	nametable := r.value & nametableMask
+	nametable := r.Value & nametableMask
 	value := addrAttrtableOffset | nametable | coarseY<<3 | coarseX
 	return value
 }
 
 func (r *vRegister) AttrTableBytePart() uint16 {
-	lo := ((r.value & coarseXMask) >> 1) & 0b01
-	hi := (r.value & coarseYMask) & 0b10
+	lo := ((r.Value & coarseXMask) >> 1) & 0b01
+	hi := (r.Value & coarseYMask) & 0b10
 	return hi | lo
 }
 
 func (r *vRegister) SetVerticalBits(value uint16) {
 	mask := nametableY | fineYMask | coarseYMask
 	verticalBits := value & mask
-	r.value &= ^mask
-	r.value |= verticalBits
+	r.Value &= ^mask
+	r.Value |= verticalBits
 }
 
 func (r *vRegister) SetHorizontalBits(value uint16) {
 	mask := nametableX | coarseXMask
 	horizontalBits := value & mask
-	r.value &= ^mask
-	r.value |= horizontalBits
+	r.Value &= ^mask
+	r.Value |= horizontalBits
 }

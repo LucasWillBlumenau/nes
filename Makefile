@@ -7,7 +7,6 @@ build:
 	@echo "Building for Linux"
 	mkdir -p $(TARGET_DIR)
 	mkdir -p $(TARGET_DIR)
-	CGO_ENABLED=1 \
 	CC=gcc GOOS=linux \
 	GOARCH=amd64 \
 	go build -tags static -ldflags "-s -w" -o $(BINARY_NAME) $(BASE_DIR)/cmd/cli
@@ -15,12 +14,11 @@ build:
 
 build-windows:
 	@echo "Building for Windows 64-bit"
-	CGO_ENABLED=1 \
 	CC=x86_64-w64-mingw32-gcc \
 	GOOS=windows \
 	GOARCH=amd64 \
-	go build -tags static -ldflags "-s -w" -o $(BINARY_NAME).exe $(BASE_DIR)/cmd/cli
-	
+	go build -o $(BINARY_NAME).exe $(BASE_DIR)/cmd/cli
+
 build-windows-32:
 	@echo "Building for Windows 32-bit"
 	mkdir -p $(TARGET_DIR)

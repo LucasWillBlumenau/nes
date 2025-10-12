@@ -134,7 +134,7 @@ func (p *PPU) ReadStatusPort() uint8 {
 	p.cleanVBlank = true
 	p.ports.status &= resetStatusVBlank
 	p.registers.writeLatch = false
-	return currentStatus | 0x10
+	return currentStatus | (p.registers.bufferedData & 0b00011111)
 }
 
 func (p *PPU) ReadOAMDataPort() uint8 {
@@ -145,14 +145,14 @@ func (p *PPU) ReadOAMDataPort() uint8 {
 
 func (p *PPU) ReadVRamDataPort() uint8 {
 	data := p.registers.bufferedData
-	addr := p.currentAddr.Value()
+	addr := p.currentAddr.Value
 	p.registers.bufferedData = p.bus.read(addr)
 	mirroredAddr := addr & 0x3FFF
 	currentAddrPointsToPaletteData := mirroredAddr >= 0x3F00 && mirroredAddr < 0x4000
 	if currentAddrPointsToPaletteData {
 		data = p.registers.bufferedData
 	}
-	p.currentAddr.SetValue(p.currentAddr.Value() + p.ports.control.incrementSize)
+	p.currentAddr.Value += p.ports.control.incrementSize
 	return data
 }
 
@@ -196,7 +196,7 @@ func (p *PPU) WritePPUScrollPort(value uint8) {
 func (p *PPU) WritePPUAddrPort(value uint8) {
 	if p.registers.writeLatch {
 		p.tempAddr = (p.tempAddr & 0xFF00) | (uint16(value))
-		p.currentAddr.SetValue(p.tempAddr)
+		p.currentAddr.Value = p.tempAddr
 	} else {
 		p.tempAddr = uint16(value) << 8
 	}
@@ -204,8 +204,8 @@ func (p *PPU) WritePPUAddrPort(value uint8) {
 }
 
 func (p *PPU) WritePPUDataPort(value uint8) {
-	p.bus.write(p.currentAddr.Value(), value)
-	p.currentAddr.SetValue(p.currentAddr.Value() + p.ports.control.incrementSize)
+	p.bus.write(p.currentAddr.Value, value)
+	p.currentAddr.Value += p.ports.control.incrementSize
 }
 
 func (p *PPU) RunSteps(cycles uint16) {
@@ -389,7 +389,7 @@ func (p *PPU) addForegroundPixels(highBitPlane uint8, lowBitPlane uint8) {
 		index := xPosition + i
 		isForegroundSpaceFilled := index >= len(p.nextForeground.pixels) ||
 			(p.nextForeground.filled[index] &&
-				p.nextForeground.pixels[index].Color != 0)
+				p.nextForeground.pixels[index].Color > 0)
 		if isForegroundSpaceFilled {
 			break
 		}
@@ -423,7 +423,8 @@ func (p *PPU) fetchBackgroundTile() {
 	case bgFetchingStateFetchAttrtable:
 		attrTableAddr := p.currentAddr.AttrTableAddress()
 		attrTableByte := p.bus.read(attrTableAddr)
-		p.renderingState.paletteId = (attrTableByte >> (p.currentAddr.AttrTableBytePart() * 2)) & 0b11
+		shift := (p.currentAddr.AttrTableBytePart()) << 1
+		p.renderingState.paletteId = (attrTableByte >> shift) & 0b11
 	case bgFetchingStateFetchLowBitplane:
 		bitsAddr := (uint16(p.renderingState.tileIndex)*tileSize + p.currentAddr.FineY()) | p.ports.control.backgroundPatternTableAddr
 		p.renderingState.lowBitPlane = p.bus.read(bitsAddr)
@@ -453,11 +454,11 @@ func (p *PPU) fillShiftRegisters() {
 func (p *PPU) appendPixel() {
 	x := int(p.renderingState.clock - 1)
 	y := int(p.renderingState.scanline)
-	pixelColor := p.getCurrentPixelColor(x)
 
+	pixelColor := p.getCurrentPixelColor(x)
 	for i := range p.scaleFactor {
 		x := x*p.scaleFactor + i
-		y := originalHeigth*p.scaleFactor - y*p.scaleFactor + i
+		y := y*p.scaleFactor + i
 		p.currentFrame.Set(x, y, pixelColor)
 	}
 }
@@ -468,8 +469,8 @@ func (p *PPU) getCurrentPixelColor(x int) color.RGBA {
 	tileId := p.foreground.tileIds[x]
 	fgPixel := p.foreground.pixels[x]
 	bgPixel := p.registers.pixelBuffer.Unbuffer(p.fineX)
-	bgIsTransparent := bgPixel.Color == 0 || !p.ports.mask.BackgroundRenderingEnabled()
-	spriteIsTransparent := fgPixel.Color == 0 || !p.ports.mask.SpriteRenderingEnabled()
+	bgIsTransparent := bgPixel.Color == 0
+	spriteIsTransparent := fgPixel.Color == 0
 
 	if !p.ports.mask.RenderingEnabled() {
 		return p.bus.GetBackdropColor()
@@ -484,9 +485,9 @@ func (p *PPU) getCurrentPixelColor(x int) color.RGBA {
 	} else if !bgIsTransparent &&
 		(spriteIsTransparent ||
 			!spriteHasPriority ||
-			!foregroundFilled) {
+			!foregroundFilled ||
+			!p.ports.mask.SpriteRenderingEnabled()) {
 		return p.bus.GetBackgroundColor(bgPixel.Palette, bgPixel.Color)
-
 	}
 	return p.bus.GetSpriteColor(fgPixel.Palette, fgPixel.Color)
 }
@@ -496,18 +497,6 @@ func (p *PPU) vBlank() {
 	if p.ports.control.nmiEnabled && vBlankStatus {
 		interrupt.InterruptSignal.Send(interrupt.NonMaskableInterrupt)
 	}
-}
-
-func (p *PPU) Scanline() uint16 {
-	return p.renderingState.scanline
-}
-
-func (p *PPU) Clock() uint16 {
-	return p.renderingState.clock
-}
-
-func (p *PPU) Frame() uint64 {
-	return p.frameCount
 }
 
 func loadBgFetchingStates() [341]backgroundFetchingState {
