@@ -4,10 +4,20 @@ import (
 	"sync"
 )
 
-var nextId int = 1
+type Button uint8
+
+const (
+	ButtonA      Button = 0
+	ButtonB      Button = 1
+	ButtonSelect Button = 2
+	ButtonStart  Button = 3
+	ButtonUp     Button = 4
+	ButtonDown   Button = 5
+	ButtonLeft   Button = 6
+	ButtonRight  Button = 7
+)
 
 type Joypad struct {
-	id         int
 	state      []bool
 	savedState []bool
 	strobe     bool
@@ -16,11 +26,7 @@ type Joypad struct {
 }
 
 func New() *Joypad {
-	defer func() {
-		nextId++
-	}()
 	return &Joypad{
-		id:         nextId,
 		state:      make([]bool, 8),
 		savedState: make([]bool, 8),
 		strobe:     false,
@@ -56,9 +62,9 @@ func (j *Joypad) Read() uint8 {
 	return 0
 }
 
-func (j *Joypad) SetControl(index uint8, value bool) {
+func (j *Joypad) SetControl(button Button, value bool) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	j.state[index] = value
+	j.state[button] = value
 }
