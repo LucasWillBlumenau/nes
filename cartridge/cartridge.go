@@ -18,16 +18,16 @@ const headersSize = 16
 const prgBankSize = 16 * 1024
 
 type Cartridge struct {
-	UseVerticalMirroring   bool
-	UseBatteryBackedRam    bool
-	UseTrainer             bool
-	UseFourScreenMirroring bool
-	RamBanksQuantity       uint
-	ProgramBanksQuantity   uint
-	MapperId               uint
+	useVerticalMirroring   bool
+	useBatteryBackedRam    bool
+	useTrainer             bool
+	useFourScreenMirroring bool
+	ramBanksQuantity       int
+	prgBanksQuantity       int
+	mapperId               int
 	Trainer                []byte
-	CharacterRom           []byte
-	prgRomBanks            [][]byte
+	crhRom                 []byte
+	prgRomBanks            []byte
 }
 
 func LoadCartridge(filePath string) (*Cartridge, error) {
@@ -71,16 +71,15 @@ func LoadCartridge(filePath string) (*Cartridge, error) {
 		}
 	}
 
-	programBanks := make([][]byte, programBanksQuantity)
-	for i := range programBanks {
-		programBanks[i] = make([]byte, prgBankSize)
-		n, err = fp.Read(programBanks[i])
-		if err != nil {
-			return nil, err
-		}
-		if n != prgBankSize {
-			return nil, ErrInvalidRomFile
-		}
+	prgRomSize := int(programBanksQuantity) * prgBankSize
+	programBanks := make([]byte, prgRomSize)
+	n, err = fp.Read(programBanks)
+	if err != nil {
+		return nil, err
+	}
+
+	if n != prgRomSize {
+		return nil, ErrInvalidRomFile
 	}
 
 	characterRom := make([]byte, charactersSize)
@@ -100,29 +99,36 @@ func LoadCartridge(filePath string) (*Cartridge, error) {
 	}
 
 	return &Cartridge{
-		UseVerticalMirroring:   useVerticalMirroring,
-		UseBatteryBackedRam:    useBatteryBackedRam,
-		UseTrainer:             useTrainer,
-		UseFourScreenMirroring: useFourScreenMirroring,
-		RamBanksQuantity:       uint(ramBanksQuantity),
-		ProgramBanksQuantity:   uint(programBanksQuantity),
-		MapperId:               uint(mapperId),
+		useVerticalMirroring:   useVerticalMirroring,
+		useBatteryBackedRam:    useBatteryBackedRam,
+		useTrainer:             useTrainer,
+		useFourScreenMirroring: useFourScreenMirroring,
+		ramBanksQuantity:       int(ramBanksQuantity),
+		prgBanksQuantity:       int(programBanksQuantity),
+		mapperId:               int(mapperId),
 		Trainer:                trainer,
-		CharacterRom:           characterRom,
+		crhRom:                 characterRom,
 		prgRomBanks:            programBanks,
 	}, nil
 }
 
-func (c *Cartridge) ReadPrgRom(addr uint16) uint8 {
-	if c.ProgramBanksQuantity == 1 {
-		if addr >= prgBankSize {
-			addr -= prgBankSize
-		}
-		return c.prgRomBanks[0][addr]
-	}
+func (c *Cartridge) UseVerticalMirroring() bool {
+	return c.useVerticalMirroring
+}
 
-	if addr >= prgBankSize {
-		return c.prgRomBanks[1][addr-prgBankSize]
+func (c *Cartridge) ReadPrgRom(addr uint16) uint8 {
+	if addr >= prgBankSize && c.prgBanksQuantity == 1 {
+		addr -= prgBankSize
 	}
-	return c.prgRomBanks[0][addr]
+	return c.prgRomBanks[addr]
+}
+
+func (c *Cartridge) WritePrgRom(addr uint16, value uint8) {
+}
+
+func (c *Cartridge) ReadChrRom(addr uint16) uint8 {
+	return c.crhRom[addr]
+}
+
+func (c *Cartridge) WriteChrRom(addr uint16, value uint8) {
 }

@@ -47,8 +47,12 @@ func NewPPUBus(cart *cartridge.Cartridge) *PPUBus {
 	}
 }
 
-func (b *PPUBus) write(addr uint16, value uint8) {
-	if writeAddr, device := b.getAddress(addr); writeAddr != nil {
+func (b *PPUBus) Write(addr uint16, value uint8) {
+	addr = mirrorAddr(addr)
+	isWriteToRom := addr < 0x2000
+	if isWriteToRom {
+		b.cart.WriteChrRom(addr, value)
+	} else if writeAddr, device := b.getAddress(addr); writeAddr != nil {
 		if device == memoryDevicePalette {
 			value &= 0b00111111
 		}
@@ -57,31 +61,23 @@ func (b *PPUBus) write(addr uint16, value uint8) {
 
 }
 
-func (b *PPUBus) read(addr uint16) uint8 {
-	if readAddr, _ := b.getAddress(addr); readAddr != nil {
+func (b *PPUBus) Read(addr uint16) uint8 {
+	addr = mirrorAddr(addr)
+	isReadFromRom := addr < 0x2000
+	if isReadFromRom {
+		return b.cart.ReadChrRom(addr)
+	} else if readAddr, _ := b.getAddress(addr); readAddr != nil {
 		return *readAddr
 	}
 	return 0
 }
 
 func (b *PPUBus) getAddress(addr uint16) (*uint8, memoryDevice) {
-	if addr >= 0x4000 {
-		addr &= 0x3FFF
-	}
-
-	isChrRomAddr := addr < 0x2000
-	if isChrRomAddr {
-		if int(addr) < len(b.cart.CharacterRom) {
-			return &b.cart.CharacterRom[addr], memoryDeviceRom
-		}
-		return nil, memoryDeviceRom
-	}
-
 	isNameTableAddress := addr < 0x03F00
 	if isNameTableAddress {
 		nameTableIndex := addr >> 10 & 0b11
 		offsets := horizontalMirroringOffset
-		if b.cart.UseVerticalMirroring {
+		if b.cart.UseVerticalMirroring() {
 			offsets = verticalMirroringOffset
 		}
 		offset := offsets[nameTableIndex]
@@ -98,6 +94,13 @@ func (b *PPUBus) getAddress(addr uint16) (*uint8, memoryDevice) {
 		return &b.backgroundPalette[palette][color], memoryDevicePalette
 	}
 	return &b.foregroundPalette[palette][color], memoryDevicePalette
+}
+
+func mirrorAddr(addr uint16) uint16 {
+	if addr >= 0x4000 {
+		addr &= 0x3FFF
+	}
+	return addr
 }
 
 func (b *PPUBus) GetBackgroundColor(paletteIndex uint8, colorIndex uint8) color.RGBA {

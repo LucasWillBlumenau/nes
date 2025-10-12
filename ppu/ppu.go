@@ -146,7 +146,7 @@ func (p *PPU) ReadOAMDataPort() uint8 {
 func (p *PPU) ReadVRamDataPort() uint8 {
 	data := p.registers.bufferedData
 	addr := p.currentAddr.Value
-	p.registers.bufferedData = p.bus.read(addr)
+	p.registers.bufferedData = p.bus.Read(addr)
 	mirroredAddr := addr & 0x3FFF
 	currentAddrPointsToPaletteData := mirroredAddr >= 0x3F00 && mirroredAddr < 0x4000
 	if currentAddrPointsToPaletteData {
@@ -204,7 +204,7 @@ func (p *PPU) WritePPUAddrPort(value uint8) {
 }
 
 func (p *PPU) WritePPUDataPort(value uint8) {
-	p.bus.write(p.currentAddr.Value, value)
+	p.bus.Write(p.currentAddr.Value, value)
 	p.currentAddr.Value += p.ports.control.incrementSize
 }
 
@@ -370,10 +370,10 @@ func (p *PPU) fetchSprite() {
 		}
 		patternTableIndex := oamTileIndex*tileSize + oamSpriteY
 		oamSpriteAddress := p.ports.control.spritePatternTableAddr | patternTableIndex
-		oamLowBitPlane := p.bus.read(oamSpriteAddress)
+		oamLowBitPlane := p.bus.Read(oamSpriteAddress)
 		patternTableIndex = oamTileIndex*tileSize + oamSpriteY + 8
 		oamSpriteAddress = p.ports.control.spritePatternTableAddr | patternTableIndex
-		oamHighBitPlane := p.bus.read(oamSpriteAddress)
+		oamHighBitPlane := p.bus.Read(oamSpriteAddress)
 		p.addForegroundPixels(oamHighBitPlane, oamLowBitPlane)
 	}
 }
@@ -419,18 +419,18 @@ func (p *PPU) fetchBackgroundTile() {
 	switch state {
 	case bgFetchingStateFetchNametable:
 		tileAddr := p.currentAddr.NametableAddress()
-		p.renderingState.tileIndex = p.bus.read(tileAddr)
+		p.renderingState.tileIndex = p.bus.Read(tileAddr)
 	case bgFetchingStateFetchAttrtable:
 		attrTableAddr := p.currentAddr.AttrTableAddress()
-		attrTableByte := p.bus.read(attrTableAddr)
+		attrTableByte := p.bus.Read(attrTableAddr)
 		shift := (p.currentAddr.AttrTableBytePart()) << 1
 		p.renderingState.paletteId = (attrTableByte >> shift) & 0b11
 	case bgFetchingStateFetchLowBitplane:
 		bitsAddr := (uint16(p.renderingState.tileIndex)*tileSize + p.currentAddr.FineY()) | p.ports.control.backgroundPatternTableAddr
-		p.renderingState.lowBitPlane = p.bus.read(bitsAddr)
+		p.renderingState.lowBitPlane = p.bus.Read(bitsAddr)
 	case bgFetchingStateFetchHighBitplane:
 		bitsAddr := (uint16(p.renderingState.tileIndex)*tileSize + p.currentAddr.FineY() + highBitPlaneOffset) | p.ports.control.backgroundPatternTableAddr
-		p.renderingState.highBitPlane = p.bus.read(bitsAddr)
+		p.renderingState.highBitPlane = p.bus.Read(bitsAddr)
 		p.fillShiftRegisters()
 		if p.ports.mask.RenderingEnabled() {
 			p.currentAddr.IncrementX()

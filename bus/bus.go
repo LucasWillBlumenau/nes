@@ -65,7 +65,7 @@ func (b *Bus) Write(addr uint16, value uint8) bool {
 		case ppuVRamDataPortAddr:
 			b.ppu.WritePPUDataPort(value)
 		}
-	} else {
+	} else if addr < 0x8000 {
 		switch addr {
 		case ppuOAMDMAPortAddr:
 			return true
@@ -75,6 +75,8 @@ func (b *Bus) Write(addr uint16, value uint8) bool {
 			b.joypadTwo.Write(value)
 		}
 	}
+	addr -= 0x8000
+	b.cartridge.WritePrgRom(addr, value)
 	return false
 }
 
@@ -87,7 +89,6 @@ func (b *Bus) Read(addr uint16) uint8 {
 	if valueAddress != nil {
 		return *valueAddress
 	}
-
 	if addr < 0x4000 {
 		addr &= 0x2007
 		switch addr {
@@ -98,23 +99,18 @@ func (b *Bus) Read(addr uint16) uint8 {
 		case ppuVRamDataPortAddr:
 			return b.ppu.ReadVRamDataPort()
 		}
-	} else if addr >= 0x8000 {
-		addr -= 0x8000
-		return b.cartridge.ReadPrgRom(addr)
+	} else if addr < 0x8000 {
+		switch addr {
+		case ppuJoypadOnePortAddr:
+			value := b.joypadOne.Read()
+			return value
+		case ppuJoypadTwoPortAddr:
+			value := b.joypadTwo.Read()
+			return value
+		}
 	}
-
-	switch addr {
-	case ppuJoypadOnePortAddr:
-		value := b.joypadOne.Read()
-		return value
-	case ppuJoypadTwoPortAddr:
-		value := b.joypadTwo.Read()
-		return value
-	}
-
-	// TODO: check out behavior on read to write-only ports
-	// panic("invalid address found")
-	return 0
+	addr -= 0x8000
+	return b.cartridge.ReadPrgRom(addr)
 }
 
 func (b *Bus) getRamAddress(addr uint16) *uint8 {
