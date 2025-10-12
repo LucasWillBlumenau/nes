@@ -14,6 +14,10 @@ const (
 	memoryDevicePalette
 )
 
+const (
+	nametableAddrMask uint16 = 0b1111111111
+)
+
 var horizontalMirroringOffset = []uint16{
 	0: 0,
 	1: 0,
@@ -76,12 +80,14 @@ func (b *PPUBus) getAddress(addr uint16) (*uint8, memoryDevice) {
 	isNameTableAddress := addr < 0x03F00
 	if isNameTableAddress {
 		nameTableIndex := addr >> 10 & 0b11
-		addr &= 0x3FF
-		mirrors := horizontalMirroringOffset
+		offsets := horizontalMirroringOffset
 		if b.cart.UseVerticalMirroring {
-			mirrors = verticalMirroringOffset
+			offsets = verticalMirroringOffset
 		}
-		return &b.ram[addr+mirrors[nameTableIndex]], memoryDeviceNametable
+		offset := offsets[nameTableIndex]
+		addr := offset + (addr & nametableAddrMask)
+
+		return &b.ram[addr], memoryDeviceNametable
 	}
 
 	addr &= 0x1F

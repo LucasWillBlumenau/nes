@@ -489,6 +489,7 @@ func (p *PPU) getCurrentPixelColor(x int) color.RGBA {
 			!p.ports.mask.SpriteRenderingEnabled()) {
 		return p.bus.GetBackgroundColor(bgPixel.Palette, bgPixel.Color)
 	}
+
 	return p.bus.GetSpriteColor(fgPixel.Palette, fgPixel.Color)
 }
 

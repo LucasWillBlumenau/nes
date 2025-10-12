@@ -1,7 +1,6 @@
 package joypad
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -52,7 +51,6 @@ func (j *Joypad) Read() uint8 {
 	j.readsCount++
 
 	if buttonPressed {
-		fmt.Printf("%08b\r", 1<<(j.readsCount-1))
 		return 1
 	}
 	return 0

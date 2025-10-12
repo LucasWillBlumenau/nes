@@ -103,8 +103,8 @@ func (r *vRegister) AttrTableAddress() uint16 {
 }
 
 func (r *vRegister) AttrTableBytePart() uint16 {
-	lo := ((r.Value & coarseXMask) >> 1) & 0b01
-	hi := (r.Value & coarseYMask) & 0b10
+	lo := (r.CoarseX() >> 1) & 0b01
+	hi := r.CoarseY() & 0b10
 	return hi | lo
 }
 
