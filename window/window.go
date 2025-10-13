@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"log"
+	"time"
 
 	"github.com/LucasWillBlumenau/nes/joypad"
 	"github.com/veandco/go-sdl2/sdl"
@@ -30,14 +31,14 @@ var joypadDPadMap = map[uint8][]joypad.Button{
 }
 
 var playerOneKeyboardMap = map[sdl.Keycode]joypad.Button{
-	sdl.K_w:      joypad.ButtonUp,
-	sdl.K_s:      joypad.ButtonDown,
-	sdl.K_a:      joypad.ButtonLeft,
-	sdl.K_d:      joypad.ButtonRight,
-	sdl.K_LSHIFT: joypad.ButtonB,
-	sdl.K_SPACE:  joypad.ButtonA,
-	sdl.K_RETURN: joypad.ButtonStart,
-	sdl.K_SELECT: joypad.ButtonSelect,
+	sdl.K_w:         joypad.ButtonUp,
+	sdl.K_s:         joypad.ButtonDown,
+	sdl.K_a:         joypad.ButtonLeft,
+	sdl.K_d:         joypad.ButtonRight,
+	sdl.K_LSHIFT:    joypad.ButtonB,
+	sdl.K_SPACE:     joypad.ButtonA,
+	sdl.K_RETURN:    joypad.ButtonStart,
+	sdl.K_BACKSPACE: joypad.ButtonSelect,
 }
 
 type WindowSize struct {
@@ -94,17 +95,21 @@ func (w *Window) Show() {
 }
 
 func (w *Window) run(window *sdl.Window, surface *sdl.Surface) {
+eventLoop:
 	for {
-		shouldQuit := w.handleEvents()
-		if shouldQuit {
-			break
-		}
-
 		select {
 		case img := <-w.imagesCh:
+			shouldQuit := w.handleEvents()
+			if shouldQuit {
+				break eventLoop
+			}
 			drawSurface(window, surface, img)
 			window.UpdateSurface()
-		default:
+		case <-time.After(time.Millisecond * 10):
+			shouldQuit := w.handleEvents()
+			if shouldQuit {
+				break eventLoop
+			}
 		}
 	}
 }
