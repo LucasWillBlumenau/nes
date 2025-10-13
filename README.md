@@ -17,7 +17,7 @@ and this one on Windows:
 
 ## Playing The Games
 
-In order to play the games, you can use a controller or the keyboard. In case, you use the keyboards this is the relationship between the keys and the buttons of the NES controller:
+In order to play the games, you can use a controller or the keyboard. In case you use the keyboards this is the relationship between the keys and the buttons of the NES controller:
 
 - W -> Button Up
 - S -> Button Down
