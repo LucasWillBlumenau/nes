@@ -320,8 +320,8 @@ func (p *PPU) evaluateSprite() {
 	case evaluateOAMYPositionByteSecondCycle:
 		start := p.renderingState.oamData[spriteYPosition]
 		end := start + 8
-		nextScanline := uint8(p.renderingState.scanline) + 1
-		spriteInScanline := nextScanline >= start && nextScanline < end
+		scanline := uint8(p.renderingState.scanline)
+		spriteInScanline := scanline >= start && scanline < end
 
 		if !spriteInScanline {
 			p.renderingState.oamSprite = (p.renderingState.oamSprite + 1) & 0b111111
@@ -363,7 +363,7 @@ func (p *PPU) fetchSprite() {
 		spriteAttr := sprite[spriteAttrByte]
 		oamTileIndex := uint16(tileIndex)
 		oamSpriteAttr := newSpriteAttributesFromByte(spriteAttr)
-		deltaY := (p.renderingState.scanline + 1) - uint16(spriteY)
+		deltaY := (p.renderingState.scanline) - uint16(spriteY)
 		oamSpriteY := deltaY
 		if oamSpriteAttr.FlipVertically {
 			oamSpriteY = 7 - deltaY
