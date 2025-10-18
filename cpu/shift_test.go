@@ -3,7 +3,6 @@ package cpu_test
 import (
 	"testing"
 
-	"github.com/LucasWillBlumenau/nes/bus"
 	"github.com/LucasWillBlumenau/nes/cpu"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +35,7 @@ func TestAslInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		bus := bus.NewBus(nil, nil, nil, nil)
+		bus := cpu.NewBus(nil, nil, nil, nil)
 		c := cpu.NewCPU(bus)
 		addr := uint16(0x1000)
 
@@ -120,7 +119,7 @@ func TestLsrInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		bus := bus.NewBus(nil, nil, nil, nil)
+		bus := cpu.NewBus(nil, nil, nil, nil)
 		c := cpu.NewCPU(bus)
 		addr := uint16(0x1000)
 
@@ -216,7 +215,7 @@ func TestRolInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		bus := bus.NewBus(nil, nil, nil, nil)
+		bus := cpu.NewBus(nil, nil, nil, nil)
 		c := cpu.NewCPU(bus)
 		addr := uint16(0x1000)
 
@@ -312,7 +311,7 @@ func TestRorInstruction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		bus := bus.NewBus(nil, nil, nil, nil)
+		bus := cpu.NewBus(nil, nil, nil, nil)
 		c := cpu.NewCPU(bus)
 		addr := uint16(0x1000)
 

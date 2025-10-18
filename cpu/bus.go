@@ -1,4 +1,4 @@
-package bus
+package cpu
 
 import (
 	"github.com/LucasWillBlumenau/nes/cartridge"

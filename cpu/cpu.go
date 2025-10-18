@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/LucasWillBlumenau/nes/bus"
 	"github.com/LucasWillBlumenau/nes/interrupt"
 )
 
@@ -36,7 +35,7 @@ type CPU struct {
 	Sp              uint8
 	Pc              uint16
 	elapsedCycles   int64
-	bus             *bus.Bus
+	bus             *Bus
 	extraCycles     uint16
 	dmaOccuring     bool
 	dmaPage         uint16
@@ -46,7 +45,7 @@ type CPU struct {
 	secondOperand   uint8
 }
 
-func NewCPU(bus *bus.Bus) *CPU {
+func NewCPU(bus *Bus) *CPU {
 	return &CPU{
 		A:   0,
 		X:   0,

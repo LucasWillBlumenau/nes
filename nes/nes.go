@@ -2,10 +2,8 @@ package nes
 
 import (
 	"image"
-	"os"
 	"time"
 
-	"github.com/LucasWillBlumenau/nes/bus"
 	"github.com/LucasWillBlumenau/nes/cartridge"
 	"github.com/LucasWillBlumenau/nes/cpu"
 	"github.com/LucasWillBlumenau/nes/joypad"
@@ -27,12 +25,6 @@ func NewNES(
 	joypadOne *joypad.Joypad,
 	joypadTwo *joypad.Joypad,
 ) (*NES, error) {
-	f, err := os.Create("output.log")
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
 	cart, err := cartridge.LoadCartridge(path)
 	if err != nil {
 		return nil, err
@@ -40,7 +32,7 @@ func NewNES(
 
 	ppuBus := ppu.NewPPUBus(cart)
 	ppu := ppu.NewPPU(ppuBus, frames, scaleFactor)
-	bus := bus.NewBus(ppu, cart, joypadOne, joypadTwo)
+	bus := cpu.NewBus(ppu, cart, joypadOne, joypadTwo)
 	cpu := cpu.NewCPU(bus)
 
 	return &NES{
