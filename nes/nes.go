@@ -20,12 +20,12 @@ type NES struct {
 
 func NewNES(
 	frames chan image.RGBA,
-	path string,
+	romPath string,
 	scaleFactor int,
 	joypadOne *joypad.Joypad,
 	joypadTwo *joypad.Joypad,
 ) (*NES, error) {
-	cart, err := cartridge.LoadCartridge(path)
+	cart, err := cartridge.LoadCartridgeFromRom(romPath)
 	if err != nil {
 		return nil, err
 	}

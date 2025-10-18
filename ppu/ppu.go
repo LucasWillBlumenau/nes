@@ -1,3 +1,13 @@
+/*
+TODO: implement the following flags of PPU Mask:
+
+Greyscale
+Background leftmost 8 pixels display
+Sprites leftmost 8 pixels display
+Red Emphasis
+Green Emphasis
+Blue Emphasis
+*/
 package ppu
 
 import (

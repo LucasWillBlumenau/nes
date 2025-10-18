@@ -2,11 +2,13 @@ package cartridge
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 )
 
 var ErrInvalidRomFile = errors.New("invalid rom file")
+var ErrUnimplementedMapper = errors.New("unimplemented mapper")
 
 const programBanksIndex = 4
 const charactersBanksIndex = 5
@@ -23,14 +25,12 @@ type Cartridge struct {
 	useTrainer             bool
 	useFourScreenMirroring bool
 	ramBanksQuantity       int
-	prgBanksQuantity       int
 	mapperId               int
 	Trainer                []byte
-	crhRom                 []byte
-	prgRomBanks            []byte
+	mapper                 mapper
 }
 
-func LoadCartridge(filePath string) (*Cartridge, error) {
+func LoadCartridgeFromRom(filePath string) (*Cartridge, error) {
 	fp, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -98,17 +98,25 @@ func LoadCartridge(filePath string) (*Cartridge, error) {
 		return nil, ErrInvalidRomFile
 	}
 
+	if mapperId != 0 {
+		return nil, fmt.Errorf("%w: mapper %d not implemented", ErrUnimplementedMapper, mapperId)
+	}
+
+	mapper := &nrom{
+		BanksQuantity: int(programBanksQuantity),
+		PrgRom:        programBanks,
+		ChrRom:        characterRom,
+	}
+
 	return &Cartridge{
 		useVerticalMirroring:   useVerticalMirroring,
 		useBatteryBackedRam:    useBatteryBackedRam,
 		useTrainer:             useTrainer,
 		useFourScreenMirroring: useFourScreenMirroring,
 		ramBanksQuantity:       int(ramBanksQuantity),
-		prgBanksQuantity:       int(programBanksQuantity),
 		mapperId:               int(mapperId),
 		Trainer:                trainer,
-		crhRom:                 characterRom,
-		prgRomBanks:            programBanks,
+		mapper:                 mapper,
 	}, nil
 }
 
@@ -117,18 +125,17 @@ func (c *Cartridge) UseVerticalMirroring() bool {
 }
 
 func (c *Cartridge) ReadPrgRom(addr uint16) uint8 {
-	if addr >= prgBankSize && c.prgBanksQuantity == 1 {
-		addr -= prgBankSize
-	}
-	return c.prgRomBanks[addr]
+	return c.mapper.ReadPrg(addr)
 }
 
-func (c *Cartridge) WritePrgRom(addr uint16, value uint8) {
+func (c *Cartridge) WritePrgRom(addr uint16, data uint8) {
+	c.mapper.WritePrg(addr, data)
 }
 
 func (c *Cartridge) ReadChrRom(addr uint16) uint8 {
-	return c.crhRom[addr]
+	return c.mapper.ReadChr(addr)
 }
 
-func (c *Cartridge) WriteChrRom(addr uint16, value uint8) {
+func (c *Cartridge) WriteChrRom(addr uint16, data uint8) {
+	c.mapper.WriteChr(addr, data)
 }
