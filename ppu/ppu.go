@@ -373,7 +373,7 @@ func (p *PPU) fetchSprite() {
 		spriteAttr := sprite[spriteAttrByte]
 		oamTileIndex := uint16(tileIndex)
 		oamSpriteAttr := newSpriteAttributesFromByte(spriteAttr)
-		deltaY := (p.renderingState.scanline) - uint16(spriteY)
+		deltaY := p.renderingState.scanline - uint16(spriteY)
 		oamSpriteY := deltaY
 		if oamSpriteAttr.FlipVertically {
 			oamSpriteY = 7 - deltaY

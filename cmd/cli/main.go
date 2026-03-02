@@ -16,15 +16,15 @@ const (
 )
 
 func main() {
-
 	frames := make(chan image.RGBA)
 	cartPath := readCliArgs()
 	joypadOne := joypad.New()
 	joypadTwo := joypad.New()
+	scaleFactor := 2
 	nes, err := nes.NewNES(
 		frames,
 		cartPath,
-		2,
+		scaleFactor,
 		joypadOne,
 		joypadTwo,
 	)

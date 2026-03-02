@@ -77,7 +77,7 @@ func (b *PPUBus) getAddress(addr uint16) (*uint8, memoryDevice) {
 	if isNameTableAddress {
 		nameTableIndex := addr >> 10 & 0b11
 		offsets := horizontalMirroringOffset
-		if b.cart.UseVerticalMirroring() {
+		if b.cart.Mirroring() == cartridge.VerticalMirroring {
 			offsets = verticalMirroringOffset
 		}
 		offset := offsets[nameTableIndex]

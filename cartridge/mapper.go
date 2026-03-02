@@ -1,6 +1,7 @@
 package cartridge
 
 type mapper interface {
+	Mirroring() MirroringType
 	ReadPrg(addr uint16) uint8
 	WritePrg(addr uint16, data uint8)
 	ReadChr(addr uint16) uint8

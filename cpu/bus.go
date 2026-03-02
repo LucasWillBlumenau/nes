@@ -42,12 +42,10 @@ func NewBus(
 }
 
 func (b *Bus) Write(addr uint16, value uint8) bool {
-	valueAddress := b.getRamAddress(addr)
-	if valueAddress != nil {
+	if addr < 0x2000 {
+		valueAddress := b.getRamAddress(addr)
 		*valueAddress = value
-	}
-
-	if addr < 0x4000 {
+	} else if addr < 0x4000 {
 		addr &= 0x2007
 		switch addr {
 		case ppuControlPortAddr:
@@ -65,7 +63,7 @@ func (b *Bus) Write(addr uint16, value uint8) bool {
 		case ppuVRamDataPortAddr:
 			b.ppu.WritePPUDataPort(value)
 		}
-	} else if addr < 0x8000 {
+	} else if addr < 0x4200 {
 		switch addr {
 		case ppuOAMDMAPortAddr:
 			return true
@@ -74,9 +72,9 @@ func (b *Bus) Write(addr uint16, value uint8) bool {
 			b.joypadOne.Write(value)
 			b.joypadTwo.Write(value)
 		}
+	} else {
+		b.cartridge.WritePrgRom(addr, value)
 	}
-	addr -= 0x8000
-	b.cartridge.WritePrgRom(addr, value)
 	return false
 }
 
@@ -85,11 +83,9 @@ func (b *Bus) OAMWrite(value uint8) {
 }
 
 func (b *Bus) Read(addr uint16) uint8 {
-	valueAddress := b.getRamAddress(addr)
-	if valueAddress != nil {
-		return *valueAddress
-	}
-	if addr < 0x4000 {
+	if addr < 0x2000 {
+		return *b.getRamAddress(addr)
+	} else if addr < 0x4000 {
 		addr &= 0x2007
 		switch addr {
 		case ppuStatusPortAddr:
@@ -99,7 +95,7 @@ func (b *Bus) Read(addr uint16) uint8 {
 		case ppuVRamDataPortAddr:
 			return b.ppu.ReadVRamDataPort()
 		}
-	} else if addr < 0x8000 {
+	} else if addr < 0x4200 {
 		switch addr {
 		case ppuJoypadOnePortAddr:
 			value := b.joypadOne.Read()
@@ -109,15 +105,10 @@ func (b *Bus) Read(addr uint16) uint8 {
 			return value
 		}
 	}
-	addr -= 0x8000
 	return b.cartridge.ReadPrgRom(addr)
 }
 
 func (b *Bus) getRamAddress(addr uint16) *uint8 {
-	isRam := addr < 0x2000
-	if isRam {
-		addr &= 0x07FF
-		return &b.ram[addr]
-	}
-	return nil
+	addr &= 0x07FF
+	return &b.ram[addr]
 }
