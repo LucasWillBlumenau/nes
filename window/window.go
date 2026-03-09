@@ -48,7 +48,7 @@ type WindowSize struct {
 
 type Window struct {
 	width                 int
-	heigth                int
+	height                int
 	imagesCh              chan image.RGBA
 	joypadOne             *joypad.Joypad
 	joypadTwo             *joypad.Joypad
@@ -58,14 +58,14 @@ type Window struct {
 
 func NewWindow(
 	width int,
-	heigth int,
+	height int,
 	joypadOne *joypad.Joypad,
 	joypadTwo *joypad.Joypad,
 	imagesCh chan image.RGBA,
 ) *Window {
 	return &Window{
 		width:                 width,
-		heigth:                heigth,
+		height:                height,
 		imagesCh:              imagesCh,
 		joypadOne:             joypadOne,
 		joypadTwo:             joypadTwo,
@@ -80,7 +80,7 @@ func (w *Window) Show() {
 	}
 	defer sdl.Quit()
 
-	window, err := sdl.CreateWindow("NES", 0, 0, 512, 480, sdl.WINDOW_SHOWN)
+	window, err := sdl.CreateWindow("NES", 0, 0, int32(w.width), int32(w.height), sdl.WINDOW_SHOWN)
 	if err != nil {
 		log.Fatalf("error creating window: %s", err)
 	}
@@ -223,9 +223,9 @@ func (w *Window) getJoypad(controllerId int) *joypad.Joypad {
 }
 
 func drawSurface(window *sdl.Window, surface *sdl.Surface, img image.RGBA) {
-	var width, heigth = window.GetSize()
+	var width, height = window.GetSize()
 	for x := range int(width) {
-		for y := range int(heigth) {
+		for y := range int(height) {
 			surface.Set(x, y, img.At(x, y))
 		}
 	}

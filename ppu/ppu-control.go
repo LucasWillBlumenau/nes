@@ -16,7 +16,7 @@ type ppuControl struct {
 	incrementSize              uint16
 	spritePatternTableAddr     uint16
 	backgroundPatternTableAddr uint16
-	spriteSizeSet              bool
+	spriteSizeIs8x16           bool
 	masterSlave                bool
 	nmiEnabled                 bool
 }
@@ -35,7 +35,7 @@ func newPPUControl(value uint8) ppuControl {
 	if (value & controlBackgroundPatternTableAddr) > 1 {
 		backgroundPatternTableAddr = 0x1000
 	}
-	spriteSizeSet := (value & controlSpriteSize) > 0
+	spriteSizeIs8x16 := (value & controlSpriteSize) > 0
 	masterSlave := (value & controlMasterSlaveSelect) > 0
 	nmiEnabled := (value & controlPortNmiEnabled) > 0
 	return ppuControl{
@@ -44,7 +44,7 @@ func newPPUControl(value uint8) ppuControl {
 		incrementSize:              incrementSize,
 		spritePatternTableAddr:     spritePatternTableAddr,
 		backgroundPatternTableAddr: backgroundPatternTableAddr,
-		spriteSizeSet:              spriteSizeSet,
+		spriteSizeIs8x16:           spriteSizeIs8x16,
 		masterSlave:                masterSlave,
 		nmiEnabled:                 nmiEnabled,
 	}

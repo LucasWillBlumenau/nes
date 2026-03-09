@@ -34,7 +34,7 @@ const (
 	spriteXPosition uint8 = 3
 
 	originalWidth  = 256
-	originalHeigth = 240
+	originalHeight = 240
 )
 
 type ppuPorts struct {
@@ -134,7 +134,7 @@ func NewPPU(bus *PPUBus, frameChannel chan image.RGBA, scaleFactor int) *PPU {
 		bus:          bus,
 		frameChannel: frameChannel,
 		scaleFactor:  scaleFactor,
-		currentFrame: *image.NewRGBA(image.Rect(0, 0, originalWidth*scaleFactor, originalHeigth*scaleFactor)),
+		currentFrame: *image.NewRGBA(image.Rect(0, 0, originalWidth*scaleFactor, originalHeight*scaleFactor)),
 	}
 	return ppu
 }
@@ -330,6 +330,9 @@ func (p *PPU) evaluateSprite() {
 	case evaluateOAMYPositionByteSecondCycle:
 		start := p.renderingState.oamData[spriteYPosition]
 		end := start + 8
+		if p.ports.control.spriteSizeIs8x16 {
+			end = start + 16
+		}
 		scanline := uint8(p.renderingState.scanline)
 		spriteInScanline := scanline >= start && scanline < end
 
@@ -369,20 +372,32 @@ func (p *PPU) fetchSprite() {
 	case spriteFetchingStateFetchBitsPlanes:
 		sprite := p.secondaryOAM[p.renderingState.currentSpriteIndex]
 		spriteY := sprite[spriteYPosition]
-		tileIndex := sprite[spriteTileIndex]
+		tileIndex := uint16(sprite[spriteTileIndex])
 		spriteAttr := sprite[spriteAttrByte]
-		oamTileIndex := uint16(tileIndex)
 		oamSpriteAttr := newSpriteAttributesFromByte(spriteAttr)
-		deltaY := p.renderingState.scanline - uint16(spriteY)
-		oamSpriteY := deltaY
-		if oamSpriteAttr.FlipVertically {
-			oamSpriteY = 7 - deltaY
+
+		var spriteHeight uint16 = 8
+		patternTableOffset := p.ports.control.spritePatternTableAddr
+		if p.ports.control.spriteSizeIs8x16 {
+			spriteHeight = 16
+			patternTableOffset = (tileIndex & 0b01) * 0x1000
 		}
-		patternTableIndex := oamTileIndex*tileSize + oamSpriteY
-		oamSpriteAddress := p.ports.control.spritePatternTableAddr | patternTableIndex
+
+		deltaY := p.renderingState.scanline - uint16(spriteY)
+		if oamSpriteAttr.FlipVertically {
+			deltaY = spriteHeight - deltaY - 1
+		}
+
+		if deltaY > 7 {
+			deltaY -= 7
+			tileIndex++
+		}
+
+		patternTableIndex := tileIndex*tileSize + deltaY
+		oamSpriteAddress := patternTableOffset | patternTableIndex
 		oamLowBitPlane := p.bus.Read(oamSpriteAddress)
-		patternTableIndex = oamTileIndex*tileSize + oamSpriteY + 8
-		oamSpriteAddress = p.ports.control.spritePatternTableAddr | patternTableIndex
+		patternTableIndex = tileIndex*tileSize + deltaY + 8
+		oamSpriteAddress = patternTableOffset | patternTableIndex
 		oamHighBitPlane := p.bus.Read(oamSpriteAddress)
 		p.addForegroundPixels(oamHighBitPlane, oamLowBitPlane)
 	}

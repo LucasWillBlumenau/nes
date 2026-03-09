@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	width  = 512
-	heigth = 240
+	width  = 256
+	height = 240
 )
 
 func main() {
@@ -33,8 +33,8 @@ func main() {
 	}
 
 	window := window.NewWindow(
-		width,
-		heigth,
+		width*scaleFactor,
+		height*scaleFactor,
 		joypadOne,
 		joypadTwo,
 		frames,
