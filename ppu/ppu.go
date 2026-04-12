@@ -294,7 +294,7 @@ func (p *PPU) DumpNametables() []image.Image {
 			tiles = append(tiles, tile)
 		}
 
-		image := image.NewRGBA(image.Rect(0, 0, 256, 128))
+		image := image.NewRGBA(image.Rect(0, 0, 256, 240))
 		for i, tile := range tiles {
 			tileX := (i % 32) * 8
 			tileY := (i / 32) * 8
