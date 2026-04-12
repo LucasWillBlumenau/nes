@@ -46,6 +46,7 @@ var commandsKeyboardMap = map[sdl.Keycode]debug.DebugOption{
 	sdl.K_1: debug.DebugOptionPauseFrameGeneration,
 	sdl.K_2: debug.DebugOptionExecuteNextInstruction,
 	sdl.K_3: debug.DebugOptionShowInstructions,
+	sdl.K_4: debug.DebugOptionDumpNametables,
 }
 
 type WindowSize struct {

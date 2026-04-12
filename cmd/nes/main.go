@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/png"
 	"log"
 	"os"
 
@@ -40,6 +41,7 @@ func main() {
 	1 - pause/reset frame generation
 	2 - run next instruction
 	3 - show/hide instructions
+	4 - dump nametable
 `)
 
 	window := window.NewWindow(
@@ -72,6 +74,19 @@ func handleDebugOptions(nes *nes.NES, commands chan debug.DebugOption) {
 			nes.ExecuteNextInstruction()
 		case debug.DebugOptionShowInstructions:
 			nes.ShowInstructions = !nes.ShowInstructions
+		case debug.DebugOptionDumpNametables:
+			images := nes.DumpPPUNametables()
+			for index, image := range images {
+				saveImage(index, image)
+			}
 		}
 	}
+}
+
+func saveImage(index int, image image.Image) {
+	fileName := fmt.Sprintf("nametable_%d.png", index)
+	out, _ := os.Create(fileName)
+	defer out.Close()
+
+	png.Encode(out, image)
 }
