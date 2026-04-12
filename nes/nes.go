@@ -1,6 +1,7 @@
 package nes
 
 import (
+	"fmt"
 	"image"
 	"time"
 
@@ -13,9 +14,12 @@ import (
 const cpuCycleDuration int64 = 559
 
 type NES struct {
-	Frames chan image.RGBA
-	ppu    *ppu.PPU
-	cpu    *cpu.CPU
+	Frames           chan image.RGBA
+	Paused           bool
+	ShowInstructions bool
+	ppu              *ppu.PPU
+	cpu              *cpu.CPU
+	start            time.Time
 }
 
 func NewNES(
@@ -37,6 +41,7 @@ func NewNES(
 
 	return &NES{
 		Frames: frames,
+		Paused: false,
 		ppu:    ppu,
 		cpu:    cpu,
 	}, nil
@@ -44,21 +49,49 @@ func NewNES(
 
 func (n *NES) Run() {
 	n.cpu.Reset()
-	start := time.Now()
+	n.start = time.Now()
 	for {
-		cyclesTaken, err := n.cpu.Run()
-		if err != nil {
-			panic(err)
-		}
-		ppuCycles := cyclesTaken * 3
-		n.ppu.RunSteps(ppuCycles)
-
-		currentTime := time.Now()
-		elapsedTime := currentTime.UnixNano() - start.UnixNano()
-		expectedElapsedTime := n.cpu.ElapsedCycles() * cpuCycleDuration
-		if expectedElapsedTime > elapsedTime {
-			diff := time.Duration(expectedElapsedTime - elapsedTime)
-			time.Sleep(diff)
+		if n.Paused {
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			n.runStep()
 		}
 	}
+}
+
+func (n *NES) runStep() {
+	var cyclesTaken uint16
+	var err error
+	if n.ShowInstructions {
+		fmt.Println(n.cpu.State())
+		cyclesTaken, err = n.cpu.Run()
+		fmt.Println(n.cpu.GetLastInstruction())
+	} else {
+		cyclesTaken, err = n.cpu.Run()
+	}
+
+	if err != nil {
+		panic(err)
+	}
+	ppuCycles := cyclesTaken * 3
+	n.ppu.RunSteps(ppuCycles)
+
+	currentTime := time.Now()
+	elapsedTime := currentTime.UnixNano() - n.start.UnixNano()
+	expectedElapsedTime := n.cpu.ElapsedCycles() * cpuCycleDuration
+	if expectedElapsedTime > elapsedTime {
+		diff := time.Duration(expectedElapsedTime - elapsedTime)
+		time.Sleep(diff)
+	}
+}
+
+func (n *NES) ExecuteNextInstruction() {
+	if !n.Paused {
+		return
+	}
+	n.runStep()
+}
+
+func (n *NES) GetLastPPUFrame() image.RGBA {
+	return n.ppu.GetLastFrame()
 }

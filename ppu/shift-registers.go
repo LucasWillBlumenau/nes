@@ -11,14 +11,16 @@ type pixelsShiftRegister struct {
 	end    uint8
 }
 
+const indexMask uint8 = 0b1111
+
 func (p *pixelsShiftRegister) Buffer(color pixel) {
-	index := p.end & 0b1111
+	index := p.end & indexMask
 	p.buffer[index] = color
 	p.end++
 }
 
 func (p *pixelsShiftRegister) Unbuffer(offset uint8) pixel {
-	currentIndex := (p.start + offset) & 0b1111
-	p.start = (p.start + 1) & 0b1111
+	currentIndex := (p.start + offset) & indexMask
+	p.start = (p.start + 1) & indexMask
 	return p.buffer[currentIndex]
 }

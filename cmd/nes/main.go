@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"log"
 	"os"
 
+	"github.com/LucasWillBlumenau/nes/debug"
 	"github.com/LucasWillBlumenau/nes/joypad"
 	"github.com/LucasWillBlumenau/nes/nes"
 	"github.com/LucasWillBlumenau/nes/window"
@@ -17,6 +19,7 @@ const (
 
 func main() {
 	frames := make(chan image.RGBA)
+	commands := make(chan debug.DebugOption)
 	cartPath := readCliArgs()
 	joypadOne := joypad.New()
 	joypadTwo := joypad.New()
@@ -32,14 +35,23 @@ func main() {
 		panic(err)
 	}
 
+	fmt.Print(`Debug options:
+
+	1 - pause/reset frame generation
+	2 - run next instruction
+	3 - show/hide instructions
+`)
+
 	window := window.NewWindow(
 		width*scaleFactor,
 		height*scaleFactor,
 		joypadOne,
 		joypadTwo,
 		frames,
+		commands,
 	)
 	go nes.Run()
+	go handleDebugOptions(nes, commands)
 	window.Show()
 }
 
@@ -49,4 +61,17 @@ func readCliArgs() string {
 		log.Fatalln("the program only supports a rom path as argument")
 	}
 	return args[0]
+}
+
+func handleDebugOptions(nes *nes.NES, commands chan debug.DebugOption) {
+	for cmd := range commands {
+		switch cmd {
+		case debug.DebugOptionPauseFrameGeneration:
+			nes.Paused = !nes.Paused
+		case debug.DebugOptionExecuteNextInstruction:
+			nes.ExecuteNextInstruction()
+		case debug.DebugOptionShowInstructions:
+			nes.ShowInstructions = !nes.ShowInstructions
+		}
+	}
 }

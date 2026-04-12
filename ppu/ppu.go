@@ -112,6 +112,7 @@ type PPU struct {
 	bus               *PPUBus
 	currentFrame      image.RGBA
 	lastFrame         image.RGBA
+	generatedFrames   int64
 	oam               [64][4]uint8
 	secondaryOAM      [8][4]uint8
 	secondaryTileIds  [8]uint8
@@ -229,6 +230,14 @@ func (p *PPU) RunSteps(cycles uint16) {
 	p.cleanVBlank = false
 }
 
+func (p *PPU) GetLastFrame() image.RGBA {
+	return p.lastFrame
+}
+
+func (p *PPU) GeneratedFrames() int64 {
+	return p.generatedFrames
+}
+
 func (p *PPU) runStep() {
 	defer p.incrementCycle()
 
@@ -255,6 +264,7 @@ func (p *PPU) handlePreRenderScanline() {
 		p.frameCount++
 		p.frameChannel <- p.currentFrame
 		p.lastFrame = p.currentFrame
+		p.generatedFrames++
 		p.rendering = true
 	} else if p.renderingState.clock == 257 && p.ports.mask.RenderingEnabled() {
 		p.currentAddr.SetHorizontalBits(p.tempAddr)

@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/LucasWillBlumenau/nes/debug"
 	"github.com/LucasWillBlumenau/nes/joypad"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -41,6 +42,12 @@ var playerOneKeyboardMap = map[sdl.Keycode]joypad.Button{
 	sdl.K_BACKSPACE: joypad.ButtonSelect,
 }
 
+var commandsKeyboardMap = map[sdl.Keycode]debug.DebugOption{
+	sdl.K_1: debug.DebugOptionPauseFrameGeneration,
+	sdl.K_2: debug.DebugOptionExecuteNextInstruction,
+	sdl.K_3: debug.DebugOptionShowInstructions,
+}
+
 type WindowSize struct {
 	Width  int
 	Heigth int
@@ -50,6 +57,7 @@ type Window struct {
 	width                 int
 	height                int
 	imagesCh              chan image.RGBA
+	commandsCh            chan debug.DebugOption
 	joypadOne             *joypad.Joypad
 	joypadTwo             *joypad.Joypad
 	playerOneControllerId int
@@ -62,11 +70,13 @@ func NewWindow(
 	joypadOne *joypad.Joypad,
 	joypadTwo *joypad.Joypad,
 	imagesCh chan image.RGBA,
+	commands chan debug.DebugOption,
 ) *Window {
 	return &Window{
 		width:                 width,
 		height:                height,
 		imagesCh:              imagesCh,
+		commandsCh:            commands,
 		joypadOne:             joypadOne,
 		joypadTwo:             joypadTwo,
 		playerOneControllerId: -1,
@@ -205,8 +215,11 @@ func (w *Window) updateJoypadButtonsState(event sdl.Event) {
 		}
 	case *sdl.KeyboardEvent:
 		pressed := event.Type == sdl.KEYDOWN
-		if button, ok := playerOneKeyboardMap[event.Keysym.Sym]; ok {
+		key := event.Keysym.Sym
+		if button, ok := playerOneKeyboardMap[key]; ok {
 			w.joypadOne.SetControl(button, pressed)
+		} else if command, ok := commandsKeyboardMap[key]; ok && pressed {
+			w.commandsCh <- command
 		}
 	}
 }
