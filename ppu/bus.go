@@ -18,14 +18,14 @@ const (
 	nametableAddrMask uint16 = 0b1111111111
 )
 
-var horizontalMirroringOffset = []uint16{
+var horizontalMirroringOffsets = []uint16{
 	0: 0,
 	1: 0,
 	2: 0x400,
 	3: 0x400,
 }
 
-var verticalMirroringOffset = []uint16{
+var verticalMirroringOffsets = []uint16{
 	0: 0,
 	1: 0x400,
 	2: 0,
@@ -76,9 +76,9 @@ func (b *PPUBus) getAddress(addr uint16) (*uint8, memoryDevice) {
 	isNameTableAddress := addr < 0x03F00
 	if isNameTableAddress {
 		nameTableIndex := addr >> 10 & 0b11
-		offsets := horizontalMirroringOffset
+		offsets := horizontalMirroringOffsets
 		if b.cart.Mirroring() == cartridge.VerticalMirroring {
-			offsets = verticalMirroringOffset
+			offsets = verticalMirroringOffsets
 		}
 		offset := offsets[nameTableIndex]
 		addr := offset + (addr & nametableAddrMask)

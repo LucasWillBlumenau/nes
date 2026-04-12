@@ -2,11 +2,14 @@
 TODO: implement the following flags of PPU Mask:
 
 Greyscale
-Background leftmost 8 pixels display
-Sprites leftmost 8 pixels display
 Red Emphasis
 Green Emphasis
 Blue Emphasis
+
+TODO: test the following flags of PPU Mask:
+
+Background leftmost 8 pixels display
+Sprites leftmost 8 pixels display
 */
 package ppu
 
@@ -108,6 +111,7 @@ type ppuRenderingState struct {
 type PPU struct {
 	bus               *PPUBus
 	currentFrame      image.RGBA
+	lastFrame         image.RGBA
 	oam               [64][4]uint8
 	secondaryOAM      [8][4]uint8
 	secondaryTileIds  [8]uint8
@@ -250,6 +254,7 @@ func (p *PPU) handlePreRenderScanline() {
 		p.ports.status &= resetSpriteOverflowFlag
 		p.frameCount++
 		p.frameChannel <- p.currentFrame
+		p.lastFrame = p.currentFrame
 		p.rendering = true
 	} else if p.renderingState.clock == 257 && p.ports.mask.RenderingEnabled() {
 		p.currentAddr.SetHorizontalBits(p.tempAddr)
@@ -512,9 +517,14 @@ func (p *PPU) getCurrentPixelColor(x int) color.RGBA {
 			!spriteHasPriority ||
 			!foregroundFilled ||
 			!p.ports.mask.SpriteRenderingEnabled()) {
+		if !p.ports.mask.ShowBgInLeftMost8Pixels() && x < 8 {
+			return p.bus.GetBackdropColor()
+		}
 		return p.bus.GetBackgroundColor(bgPixel.Palette, bgPixel.Color)
 	}
-
+	if !p.ports.mask.ShowFgInLeftMost8Pixels() && x < 8 {
+		return p.bus.GetBackdropColor()
+	}
 	return p.bus.GetSpriteColor(fgPixel.Palette, fgPixel.Color)
 }
 

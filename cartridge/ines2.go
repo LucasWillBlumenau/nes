@@ -21,6 +21,10 @@ func (m *ines2) Mirroring() MirroringType {
 }
 
 func (m *ines2) ReadPrg(addr16 uint16) uint8 {
+	if addr16 < 0x8000 {
+		return 0
+	}
+
 	addr := int(addr16) - 0x8000
 	if addr < 0x4000 {
 		addr += 16 * 1024 * m.selectedBank
@@ -38,9 +42,9 @@ func (m *ines2) WritePrg(addr uint16, data uint8) {
 }
 
 func (m *ines2) ReadChr(addr uint16) uint8 {
-	return m.rom.Character.Read(addr)
+	return m.rom.Character.Read(int(addr))
 }
 
 func (m *ines2) WriteChr(addr uint16, data uint8) {
-	m.rom.Character.Write(addr, data)
+	m.rom.Character.Write(int(addr), data)
 }

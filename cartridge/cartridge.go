@@ -31,27 +31,31 @@ const (
 )
 
 type characterMemory interface {
-	Read(addr uint16) uint8
-	Write(addr uint16, data uint8)
+	Read(addr int) uint8
+	Write(addr int, data uint8)
 }
 
 type characterRam []byte
 
-func (r characterRam) Read(addr uint16) uint8 {
+func (r characterRam) Read(addr int) uint8 {
 	return (r)[addr]
 }
 
-func (r characterRam) Write(addr uint16, data uint8) {
+func (r characterRam) Write(addr int, data uint8) {
 	(r)[addr] = data
+}
+
+func (r characterRam) Size() int {
+	return len(r)
 }
 
 type characterRom []byte
 
-func (r characterRom) Read(addr uint16) uint8 {
+func (r characterRom) Read(addr int) uint8 {
 	return (r)[addr]
 }
 
-func (r characterRom) Write(addr uint16, data uint8) {
+func (r characterRom) Write(addr int, data uint8) {
 }
 
 type cartridgeHeaders struct {
