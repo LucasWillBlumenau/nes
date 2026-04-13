@@ -203,7 +203,8 @@ func (p *PPU) WritePPUScrollPort(value uint8) {
 		p.tempAddr |= uint16(value&0b00000111) << 12
 	} else {
 		p.tempAddr = uint16(value&0b11111000) >> 3
-		p.fineX = value & 0b00000111
+		fineX := uint16(value & 0b00000111)
+		p.registers.pixelBuffer.SetFineX(fineX)
 	}
 	p.registers.writeLatch = !p.registers.writeLatch
 }
@@ -326,6 +327,9 @@ func (p *PPU) handlePreRenderScanline() {
 	} else if p.renderingState.clock >= 280 && p.renderingState.clock < 305 && p.ports.mask.RenderingEnabled() {
 		p.currentAddr.SetVerticalBits(p.tempAddr)
 	} else if p.renderingState.clock >= 321 && p.renderingState.clock < 337 {
+		if p.renderingState.clock == 321 {
+			p.registers.pixelBuffer.Reset()
+		}
 		p.fetchBackgroundTile()
 	}
 }
@@ -364,6 +368,9 @@ func (p *PPU) handleVisibleScanline() {
 			p.fetchSprite()
 		}
 	} else if p.renderingState.clock < 337 {
+		if p.renderingState.clock == 321 {
+			p.registers.pixelBuffer.Reset()
+		}
 		p.fetchBackgroundTile()
 	}
 }
@@ -563,7 +570,7 @@ func (p *PPU) getCurrentPixelColor(x int) color.RGBA {
 	spriteHasPriority := p.foreground.priority[x]
 	tileId := p.foreground.tileIds[x]
 	fgPixel := p.foreground.pixels[x]
-	bgPixel := p.registers.pixelBuffer.Unbuffer(p.fineX)
+	bgPixel := p.registers.pixelBuffer.Unbuffer()
 	bgIsTransparent := bgPixel.Color == 0
 	spriteIsTransparent := fgPixel.Color == 0
 

@@ -6,21 +6,28 @@ type pixel struct {
 }
 
 type pixelsShiftRegister struct {
-	buffer [16]pixel
-	start  uint8
-	end    uint8
+	buffer [272]pixel
+	start  uint16
+	end    uint16
+	fineX  uint16
 }
 
-const indexMask uint8 = 0b1111
+func (p *pixelsShiftRegister) SetFineX(fineX uint16) {
+	p.fineX = fineX
+}
+
+func (p *pixelsShiftRegister) Reset() {
+	p.end = 0
+	p.start = 0
+}
 
 func (p *pixelsShiftRegister) Buffer(color pixel) {
-	index := p.end & indexMask
-	p.buffer[index] = color
+	p.buffer[p.end] = color
 	p.end++
 }
 
-func (p *pixelsShiftRegister) Unbuffer(offset uint8) pixel {
-	currentIndex := (p.start + offset) & indexMask
-	p.start = (p.start + 1) & indexMask
-	return p.buffer[currentIndex]
+func (p *pixelsShiftRegister) Unbuffer() pixel {
+	value := p.buffer[p.start+p.fineX]
+	p.start++
+	return value
 }
