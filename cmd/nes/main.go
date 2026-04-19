@@ -43,6 +43,7 @@ func main() {
 	2 - run next instruction
 	3 - show/hide instructions
 	4 - dump nametable
+	5 - print x coordinates of top scaline
 `)
 
 	scaledWidth := width * scaleFactor
@@ -82,6 +83,8 @@ func handleDebugOptions(nes *nes.NES, commands chan debug.DebugOption) {
 		case debug.DebugOptionDumpNametables:
 			image := nes.DumpPPUNametables()
 			saveImage(image)
+		case debug.DebugOptionPrintXCoordinatesOfTopScanline:
+			nes.TogglePrintXCoordinatesOfTopScanlineFlag()
 		}
 	}
 }

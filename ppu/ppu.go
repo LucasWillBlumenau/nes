@@ -14,6 +14,7 @@ Sprites leftmost 8 pixels display
 package ppu
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 
@@ -85,29 +86,30 @@ type ppuRenderingState struct {
 }
 
 type PPU struct {
-	bus               *PPUBus
-	currentFrame      image.RGBA
-	lastFrame         image.RGBA
-	generatedFrames   int64
-	oam               [64][4]uint8
-	secondaryOAM      [8][4]uint8
-	secondaryTileIds  [8]uint8
-	foreground        foreground
-	nextForeground    foreground
-	secondaryOAMIndex int
-	rendering         bool
-	ports             ppuPorts
-	renderingState    ppuRenderingState
-	registers         ppuRegisters
-	frameChannel      chan image.RGBA
-	currentAddr       vRegister
-	tempAddr          uint16
-	fineX             uint8
-	frameCount        uint64
-	cycles            uint64
-	scaleFactor       int
-	cleanVBlank       bool
-	oddFrame          bool
+	bus                            *PPUBus
+	currentFrame                   image.RGBA
+	lastFrame                      image.RGBA
+	generatedFrames                int64
+	oam                            [64][4]uint8
+	secondaryOAM                   [8][4]uint8
+	secondaryTileIds               [8]uint8
+	foreground                     foreground
+	nextForeground                 foreground
+	secondaryOAMIndex              int
+	rendering                      bool
+	ports                          ppuPorts
+	renderingState                 ppuRenderingState
+	registers                      ppuRegisters
+	frameChannel                   chan image.RGBA
+	currentAddr                    vRegister
+	tempAddr                       uint16
+	fineX                          uint8
+	frameCount                     uint64
+	cycles                         uint64
+	scaleFactor                    int
+	cleanVBlank                    bool
+	oddFrame                       bool
+	printXCoordinatesOfTopScanline bool
 }
 
 const (
@@ -142,6 +144,10 @@ func NewPPU(bus *PPUBus, frameChannel chan image.RGBA, scaleFactor int) *PPU {
 		currentFrame: *image.NewRGBA(image.Rect(0, 0, originalWidth*scaleFactor, originalHeight*scaleFactor)),
 	}
 	return ppu
+}
+
+func (p *PPU) TogglePrintXCoordinatesOfTopScanlineFlag() {
+	p.printXCoordinatesOfTopScanline = !p.printXCoordinatesOfTopScanline
 }
 
 func (p *PPU) ReadStatusPort() uint8 {
@@ -199,10 +205,12 @@ func (p *PPU) WriteOAMDataPort(value uint8) {
 
 func (p *PPU) WritePPUScrollPort(value uint8) {
 	if p.registers.writeLatch {
-		p.tempAddr |= uint16(value&0b11111000) << 2
-		p.tempAddr |= uint16(value&0b00000111) << 12
+		coarseY := uint16(value&0b11111000) << 2
+		fineY := uint16(value&0b00000111) << 12
+		p.tempAddr |= coarseY | fineY
 	} else {
-		p.tempAddr = uint16(value&0b11111000) >> 3
+		p.tempAddr &= ^uint16(0b11111)
+		p.tempAddr |= uint16(value&0b11111000) >> 3
 		fineX := uint16(value & 0b00000111)
 		p.registers.pixelBuffer.SetFineX(fineX)
 	}
@@ -243,7 +251,6 @@ func (p *PPU) runStep() {
 	defer p.incrementCycle()
 
 	preRenderScanline := p.renderingState.scanline == 261
-
 	if preRenderScanline {
 		p.handlePreRenderScanline()
 	} else if p.renderingState.scanline < 240 {
@@ -258,8 +265,9 @@ func (p *PPU) runStep() {
 }
 
 func (p *PPU) DumpNametables() image.Image {
-	scrollX := p.currentAddr.CoarseX()*8 + uint16(p.fineX) + 256*(p.ports.control.nametable&1)
-	scrollY := p.currentAddr.CoarseY()*8 + p.currentAddr.FineY() + 240*(p.ports.control.nametable>>1)
+	scrollReg := vRegister{p.tempAddr}
+	scrollX := scrollReg.CoarseX()*8 + uint16(p.fineX) + 256*(p.ports.control.nametable&1)
+	scrollY := scrollReg.CoarseY()*8 + scrollReg.FineY() + 240*(p.ports.control.nametable>>1)
 
 	nametablesOffsets := []uint16{0x2000, 0x2400, 0x2800, 0x2C00}
 	nametableSize := uint16(960)
@@ -362,6 +370,16 @@ func (p *PPU) handleVisibleScanline() {
 		p.foreground = p.nextForeground
 		p.nextForeground = foreground{}
 	} else if p.renderingState.clock < 257 {
+		if p.renderingState.scanline == 0 && p.printXCoordinatesOfTopScanline {
+			fmt.Printf(
+				"Clock %d, Nametable = %d, Coarse X = %d, Fine X = %d\n",
+				p.renderingState.clock,
+				p.currentAddr.Nametable(),
+				p.currentAddr.CoarseX(),
+				p.fineX,
+			)
+		}
+
 		p.appendPixel()
 		p.fetchBackgroundTile()
 

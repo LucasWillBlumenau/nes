@@ -7,6 +7,7 @@ const (
 	DebugOptionExecuteNextInstruction
 	DebugOptionShowInstructions
 	DebugOptionDumpNametables
+	DebugOptionPrintXCoordinatesOfTopScanline
 )
 
 func (d DebugOption) String() string {
@@ -19,6 +20,8 @@ func (d DebugOption) String() string {
 		return "DebugOptionShowInstructions"
 	case DebugOptionDumpNametables:
 		return "DebugOptionDumpNametables"
+	case DebugOptionPrintXCoordinatesOfTopScanline:
+		return "DebugOptionPrintXCoordinatesOfTopScanline"
 	}
 	return "Invalid"
 

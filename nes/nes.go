@@ -22,6 +22,10 @@ type NES struct {
 	start            time.Time
 }
 
+func (n *NES) TogglePrintXCoordinatesOfTopScanlineFlag() {
+	n.ppu.TogglePrintXCoordinatesOfTopScanlineFlag()
+}
+
 func NewNES(
 	frames chan image.RGBA,
 	romPath string,
