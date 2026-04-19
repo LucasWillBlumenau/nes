@@ -92,6 +92,6 @@ func (n *NES) ExecuteNextInstruction() {
 	n.runStep()
 }
 
-func (n *NES) DumpPPUNametables() []image.Image {
+func (n *NES) DumpPPUNametables() image.Image {
 	return n.ppu.DumpNametables()
 }

@@ -257,8 +257,9 @@ func (p *PPU) runStep() {
 	}
 }
 
-func (p *PPU) DumpNametables() []image.Image {
-	images := make([]image.Image, 0, 4)
+func (p *PPU) DumpNametables() image.Image {
+	scrollX := p.currentAddr.CoarseX()*8 + uint16(p.fineX) + 256*(p.ports.control.nametable&1)
+	scrollY := p.currentAddr.CoarseY()*8 + p.currentAddr.FineY() + 240*(p.ports.control.nametable>>1)
 
 	nametablesOffsets := []uint16{0x2000, 0x2400, 0x2800, 0x2C00}
 	nametableSize := uint16(960)
@@ -277,7 +278,8 @@ func (p *PPU) DumpNametables() []image.Image {
 		}
 	}
 
-	for _, nametable := range nametables {
+	image := image.NewRGBA(image.Rect(0, 0, 512, 480))
+	for index, nametable := range nametables {
 		var tiles [][8][8]uint8
 		for _, tileIndex := range nametable {
 			var tile [8][8]uint8
@@ -295,7 +297,9 @@ func (p *PPU) DumpNametables() []image.Image {
 			tiles = append(tiles, tile)
 		}
 
-		image := image.NewRGBA(image.Rect(0, 0, 256, 240))
+		xOffset := (index % 2) * 256
+		yOffset := (index / 2) * 240
+
 		for i, tile := range tiles {
 			tileX := (i % 32) * 8
 			tileY := (i / 32) * 8
@@ -303,13 +307,28 @@ func (p *PPU) DumpNametables() []image.Image {
 			for y := range 8 {
 				for x := range 8 {
 					index := tile[y][x]
-					image.Set(tileX+x, tileY+y, pixelMap[index])
+					image.Set(tileX+x+xOffset, tileY+y+yOffset, pixelMap[index])
 				}
 			}
 		}
-		images = append(images, image)
+
 	}
-	return images
+
+	for i := range 512 {
+		image.Set(i, int(scrollY), color.RGBA{R: 255, G: 0, B: 0, A: 255})
+		image.Set(i, int(scrollY)+1, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+		image.Set(i, int(scrollY)+2, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+		image.Set(i, int(scrollY)+3, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	}
+
+	for i := range 480 {
+		image.Set(int(scrollX), i, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+		image.Set(int(scrollX)+1, i, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+		image.Set(int(scrollX)+2, i, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+		image.Set(int(scrollX)+3, i, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	}
+
+	return image
 }
 
 func (p *PPU) handlePreRenderScanline() {

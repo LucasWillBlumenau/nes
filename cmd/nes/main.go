@@ -80,16 +80,14 @@ func handleDebugOptions(nes *nes.NES, commands chan debug.DebugOption) {
 		case debug.DebugOptionShowInstructions:
 			nes.ShowInstructions = !nes.ShowInstructions
 		case debug.DebugOptionDumpNametables:
-			images := nes.DumpPPUNametables()
-			for index, image := range images {
-				saveImage(index, image)
-			}
+			image := nes.DumpPPUNametables()
+			saveImage(image)
 		}
 	}
 }
 
-func saveImage(index int, image image.Image) {
-	fileName := fmt.Sprintf("nametable_%d.png", index)
+func saveImage(image image.Image) {
+	fileName := "nametable.png"
 	out, _ := os.Create(fileName)
 	defer out.Close()
 
