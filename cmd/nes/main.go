@@ -20,6 +20,7 @@ const (
 
 func main() {
 	frames := make(chan image.RGBA)
+
 	commands := make(chan debug.DebugOption)
 	cartPath := readCliArgs()
 	joypadOne := joypad.New()
@@ -44,17 +45,21 @@ func main() {
 	4 - dump nametable
 `)
 
-	window := window.NewWindow(
-		width*scaleFactor,
-		height*scaleFactor,
+	scaledWidth := width * scaleFactor
+	scaledHeight := height * scaleFactor
+
+	gameWindow := window.NewWindow(
+		scaledWidth,
+		scaledHeight,
 		joypadOne,
 		joypadTwo,
 		frames,
 		commands,
 	)
+
 	go nes.Run()
 	go handleDebugOptions(nes, commands)
-	window.Show()
+	gameWindow.Show()
 }
 
 func readCliArgs() string {

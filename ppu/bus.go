@@ -32,6 +32,11 @@ var verticalMirroringOffsets = []uint16{
 	3: 0x400,
 }
 
+var offsetsByMirroringType = [][]uint16{
+	cartridge.MirroringTypeVertical:   verticalMirroringOffsets,
+	cartridge.MirroringTypeHorizontal: horizontalMirroringOffsets,
+}
+
 type PPUBus struct {
 	cart              *cartridge.Cartridge
 	ram               []uint8
@@ -76,10 +81,7 @@ func (b *PPUBus) getAddress(addr uint16) (*uint8, memoryDevice) {
 	isNameTableAddress := addr < 0x03F00
 	if isNameTableAddress {
 		nameTableIndex := addr >> 10 & 0b11
-		offsets := horizontalMirroringOffsets
-		if b.cart.Mirroring() == cartridge.VerticalMirroring {
-			offsets = verticalMirroringOffsets
-		}
+		offsets := offsetsByMirroringType[b.cart.Mirroring()]
 		offset := offsets[nameTableIndex]
 		addr := offset + (addr & nametableAddrMask)
 

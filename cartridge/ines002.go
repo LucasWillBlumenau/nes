@@ -42,9 +42,9 @@ func (m *ines2) WritePrg(addr uint16, data uint8) {
 }
 
 func (m *ines2) ReadChr(addr uint16) uint8 {
-	return m.rom.Character.Read(int(addr))
+	return m.rom.Character.Read(uint(addr))
 }
 
 func (m *ines2) WriteChr(addr uint16, data uint8) {
-	m.rom.Character.Write(int(addr), data)
+	m.rom.Character.Write(uint(addr), data)
 }

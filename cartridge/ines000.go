@@ -34,9 +34,9 @@ func (m *nrom) WritePrg(_ uint16, _ uint8) {
 }
 
 func (m *nrom) ReadChr(addr uint16) uint8 {
-	return m.rom.Character.Read(int(addr))
+	return m.rom.Character.Read(uint(addr))
 }
 
 func (m *nrom) WriteChr(addr uint16, data uint8) {
-	m.rom.Character.Write(int(addr), data)
+	m.rom.Character.Write(uint(addr), data)
 }

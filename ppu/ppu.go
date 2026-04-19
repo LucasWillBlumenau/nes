@@ -20,26 +20,6 @@ import (
 	"github.com/LucasWillBlumenau/nes/interrupt"
 )
 
-const (
-	tileSize           uint16 = 16
-	highBitPlaneOffset uint16 = 8
-
-	setStatusVBlank         uint8 = 0b10000000
-	setSprite0HitFlag       uint8 = 0b01000000
-	setSpriteOverflowFlag   uint8 = 0b00100000
-	resetStatusVBlank       uint8 = 0b01111111
-	resetSprite0HitFlag     uint8 = 0b10111111
-	resetSpriteOverflowFlag uint8 = 0b11011111
-
-	spriteYPosition uint8 = 0
-	spriteTileIndex uint8 = 1
-	spriteAttrByte  uint8 = 2
-	spriteXPosition uint8 = 3
-
-	originalWidth  = 256
-	originalHeight = 240
-)
-
 type ppuPorts struct {
 	control ppuControl
 	mask    ppuMask
@@ -64,16 +44,12 @@ const (
 	bgFetchingStateFetchHighBitplane
 )
 
-var backgroundFetchingStateByClock = loadBgFetchingStates()
-
 type spriteFetchingState uint8
 
 const (
 	spriteFetchingStateIdle spriteFetchingState = iota
 	spriteFetchingStateFetchBitsPlanes
 )
-
-var spriteFetchingStateByClock = loadSpriteFetchingStates()
 
 type oamEvaluationState uint8
 
@@ -133,6 +109,30 @@ type PPU struct {
 	cleanVBlank       bool
 	oddFrame          bool
 }
+
+const (
+	tileSize           uint16 = 16
+	highBitPlaneOffset uint16 = 8
+
+	setStatusVBlank         uint8 = 0b10000000
+	setSprite0HitFlag       uint8 = 0b01000000
+	setSpriteOverflowFlag   uint8 = 0b00100000
+	resetStatusVBlank       uint8 = 0b01111111
+	resetSprite0HitFlag     uint8 = 0b10111111
+	resetSpriteOverflowFlag uint8 = 0b11011111
+
+	spriteYPosition uint8 = 0
+	spriteTileIndex uint8 = 1
+	spriteAttrByte  uint8 = 2
+	spriteXPosition uint8 = 3
+
+	originalWidth  = 256
+	originalHeight = 240
+)
+
+var spriteFetchingStateByClock = loadSpriteFetchingStates()
+
+var backgroundFetchingStateByClock = loadBgFetchingStates()
 
 func NewPPU(bus *PPUBus, frameChannel chan image.RGBA, scaleFactor int) *PPU {
 	ppu := &PPU{
@@ -652,8 +652,7 @@ func determineSpriteFetchingState(cycle int) spriteFetchingState {
 		return spriteFetchingStateIdle
 	}
 
-	switch (cycle - 1) % 8 {
-	case 5:
+	if (cycle-1)%8 == 5 {
 		return spriteFetchingStateFetchBitsPlanes
 	}
 	return spriteFetchingStateIdle

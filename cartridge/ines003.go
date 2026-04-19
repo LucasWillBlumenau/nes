@@ -4,7 +4,7 @@ type ines3 struct {
 	mirroring    MirroringType
 	rom          *cartridgeRom
 	ram          [1024 * 2]uint8
-	selectedBank int
+	selectedBank uint
 	headers      *cartridgeHeaders
 }
 
@@ -27,7 +27,7 @@ func (m *ines3) ReadPrg(addr16 uint16) uint8 {
 		return 0
 	}
 	if addr16 < 0x8000 {
-		return m.ram[addr16&0x7FF]
+		return m.ram[addr16-0x6000]
 	}
 
 	addr := int(addr16) - 0x8000
@@ -39,17 +39,18 @@ func (m *ines3) WritePrg(addr uint16, data uint8) {
 		return
 	}
 	if addr < 0x8000 {
-		m.ram[addr&0x7FF] = data
+		m.ram[addr-0x6000] = data
 	} else {
 		addr -= 0x8000
-		m.selectedBank = int(data & m.rom.Program[addr] & 0b11)
+		m.selectedBank = uint(data & 0b11)
 	}
 }
 
 func (m *ines3) ReadChr(addr uint16) uint8 {
-	return m.rom.Character.Read(int(addr) + m.selectedBank*8*1024)
+	const bankSize uint = 8 * 1024
+	return m.rom.Character.Read(uint(addr) + m.selectedBank*bankSize)
 }
 
 func (m *ines3) WriteChr(addr uint16, data uint8) {
-	m.rom.Character.Write(int(addr), data)
+	m.rom.Character.Write(uint(addr), data)
 }

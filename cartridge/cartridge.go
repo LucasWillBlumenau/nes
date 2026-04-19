@@ -10,9 +10,9 @@ import (
 type MirroringType uint8
 
 const (
-	VerticalMirroring MirroringType = iota
-	HorizontalMirroring
-	FourScreenMirroring
+	MirroringTypeVertical MirroringType = iota
+	MirroringTypeHorizontal
+	MirroringTypeFourScreen
 )
 
 var ErrInvalidRomFile = errors.New("invalid rom file")
@@ -31,31 +31,27 @@ const (
 )
 
 type characterMemory interface {
-	Read(addr int) uint8
-	Write(addr int, data uint8)
+	Read(addr uint) uint8
+	Write(addr uint, data uint8)
 }
 
-type characterRam []byte
+type characterRam []uint8
 
-func (r characterRam) Read(addr int) uint8 {
+func (r characterRam) Read(addr uint) uint8 {
 	return (r)[addr]
 }
 
-func (r characterRam) Write(addr int, data uint8) {
+func (r characterRam) Write(addr uint, data uint8) {
 	(r)[addr] = data
 }
 
-func (r characterRam) Size() int {
-	return len(r)
-}
+type characterRom []uint8
 
-type characterRom []byte
-
-func (r characterRom) Read(addr int) uint8 {
+func (r characterRom) Read(addr uint) uint8 {
 	return (r)[addr]
 }
 
-func (r characterRom) Write(addr int, data uint8) {
+func (r characterRom) Write(addr uint, data uint8) {
 }
 
 type cartridgeHeaders struct {
@@ -73,8 +69,8 @@ type cartridgeHeaders struct {
 
 type cartridgeRom struct {
 	Character characterMemory
-	Program   []byte
-	Trainers  []byte
+	Program   []uint8
+	Trainers  []uint8
 }
 
 type Cartridge struct {
@@ -99,7 +95,7 @@ func LoadCartridgeFromRom(filePath string) (*Cartridge, error) {
 		return nil, err
 	}
 
-	buf := make([]byte, 1)
+	buf := make([]uint8, 1)
 	_, err = fp.Read(buf)
 	if !errors.Is(err, io.EOF) {
 		return nil, ErrInvalidRomFile
@@ -120,7 +116,7 @@ func LoadCartridgeFromRom(filePath string) (*Cartridge, error) {
 }
 
 func readHeaders(reader io.Reader) (*cartridgeHeaders, error) {
-	headers := make([]byte, headersSize)
+	headers := make([]uint8, headersSize)
 	n, err := reader.Read(headers)
 	if err != nil {
 		return nil, err
@@ -146,11 +142,13 @@ func readHeaders(reader io.Reader) (*cartridgeHeaders, error) {
 
 	useVerticalMirroring := (firstControlByte & 0b1) == 1
 	useFourScreenMirroring := (firstControlByte & 0b1000) == 1
-	mirroring := HorizontalMirroring
+	var mirroring MirroringType
 	if useFourScreenMirroring {
-		mirroring = FourScreenMirroring
+		mirroring = MirroringTypeFourScreen
 	} else if useVerticalMirroring {
-		mirroring = VerticalMirroring
+		mirroring = MirroringTypeVertical
+	} else {
+		mirroring = MirroringTypeHorizontal
 	}
 
 	useBatteryBackedRam := (firstControlByte & 0b10) == 1
@@ -174,16 +172,16 @@ func readHeaders(reader io.Reader) (*cartridgeHeaders, error) {
 }
 
 func readRom(reader io.Reader, headers *cartridgeHeaders) (*cartridgeRom, error) {
-	var trainer []byte
+	var trainer []uint8
 	if headers.UseTrainer {
-		trainer = make([]byte, 512)
+		trainer = make([]uint8, 512)
 		_, err := reader.Read(trainer)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	prgRom := make([]byte, headers.ProgramRomSize)
+	prgRom := make([]uint8, headers.ProgramRomSize)
 	n, err := reader.Read(prgRom)
 	if err != nil {
 		return nil, err
@@ -193,7 +191,7 @@ func readRom(reader io.Reader, headers *cartridgeHeaders) (*cartridgeRom, error)
 		return nil, ErrInvalidRomFile
 	}
 
-	var chrRomData = make([]byte, headers.CharacterRomSize)
+	var chrRomData = make([]uint8, headers.CharacterRomSize)
 	var chrRom characterMemory
 	if headers.UseCharacterRam {
 		chrRom = characterRam(chrRomData)
